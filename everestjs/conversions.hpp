@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2020 - 2021 Pionix GmbH and Contributors to EVerest
-#ifndef CONVERSIONS_HPP
-#define CONVERSIONS_HPP
-
-#include <framework/everest.hpp>
+// Copyright 2020 - 2022 Pionix GmbH and Contributors to EVerest
+#ifndef EVERESTJS_CONVERSIONS_HPP
+#define EVERESTJS_CONVERSIONS_HPP
 
 #include <napi.h>
 
-#include <utils/conversions.hpp>
-#include <utils/types.hpp>
+#include <everest/everest.hpp>
+#include <everest/types.hpp>
+#include <everest/utils/conversions.hpp>
 
-namespace everest_js {
+namespace everest {
 
 static const char* const napi_valuetype_strings[] = {
     "undefined", //
@@ -28,6 +27,6 @@ static const char* const napi_valuetype_strings[] = {
 everest::json convertToJson(const Napi::Value& value);
 Napi::Value convertToNapiValue(const Napi::Env& env, const everest::json& value);
 
-} // namespace everest_js
+} // namespace everest
 
-#endif // CONVERSIONS_HPP
+#endif // EVERESTJS_CONVERSIONS_HPP

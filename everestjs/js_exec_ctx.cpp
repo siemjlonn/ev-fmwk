@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2020 - 2021 Pionix GmbH and Contributors to EVerest
+// Copyright 2020 - 2022 Pionix GmbH and Contributors to EVerest
 #include "js_exec_ctx.hpp"
+
 #include "utils.hpp"
 
 void JsExecCtx::tramp(Napi::Env env, Napi::Function callback, std::nullptr_t* context, JsExecCtx* this_) {

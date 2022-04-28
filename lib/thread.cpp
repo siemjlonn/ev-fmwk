@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2020 - 2021 Pionix GmbH and Contributors to EVerest
-#include <utils/thread.hpp>
+#include <everest/utils/thread.hpp>
 
 namespace everest {
 Thread::Thread() {

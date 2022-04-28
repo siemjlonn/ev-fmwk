@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2020 - 2022 Pionix GmbH and Contributors to EVerest
-#ifndef UTILS_MQTT_ABSTRACTION_HPP
-#define UTILS_MQTT_ABSTRACTION_HPP
+#ifndef EVEREST_UTILS_MQTT_ABSTRACTION_HPP
+#define EVEREST_UTILS_MQTT_ABSTRACTION_HPP
 
 #include <future>
 
-#include <nlohmann/json.hpp>
-
-#include <utils/types.hpp>
+#include <everest/types.hpp>
 
 namespace everest {
-using json = nlohmann::json;
 
 class MQTTAbstractionImpl;
 
@@ -87,4 +84,4 @@ public:
 };
 } // namespace everest
 
-#endif // UTILS_MQTT_ABSTRACTION_HPP
+#endif // EVEREST_UTILS_MQTT_ABSTRACTION_HPP

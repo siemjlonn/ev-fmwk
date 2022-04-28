@@ -7,10 +7,10 @@
 
 #include <fmt/format.h>
 
-#include <everest/exceptions.hpp>
-#include <everest/logging.hpp>
+#include <everest/logging/exceptions.hpp>
+#include <everest/logging/logging.hpp>
 
-#include <utils/config.hpp>
+#include <everest/utils/config.hpp>
 
 namespace everest {
 

@@ -9,11 +9,11 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <date/date.h>
-#include <everest/logging.hpp>
+#include <everest/logging/logging.hpp>
 #include <fmt/format.h>
 
-#include <framework/everest.hpp>
-#include <utils/conversions.hpp>
+#include <everest/everest.hpp>
+#include <everest/utils/conversions.hpp>
 
 namespace everest {
 const auto remote_cmd_res_timeout_seconds = 300;

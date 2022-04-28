@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2020 - 2022 Pionix GmbH and Contributors to EVerest
 
-#include <framework/runtime.hpp>
+#include <everest/runtime.hpp>
 
 namespace everest {
 RuntimeSettings::RuntimeSettings(const po::variables_map& vm) : main_dir(vm["main_dir"].as<std::string>()) {

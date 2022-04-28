@@ -1,13 +1,18 @@
-#ifndef FRAMEWORK_EVEREST_RUNTIME_HPP
-#define FRAMEWORK_EVEREST_RUNTIME_HPP
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2020 - 2022 Pionix GmbH and Contributors to EVerest
+#ifndef EVEREST_RUNTIME_HPP
+#define EVEREST_RUNTIME_HPP
+
+#include <sys/prctl.h>
 
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
-#include <everest/logging.hpp>
+
 #include <fmt/color.h>
 #include <fmt/core.h>
-#include <framework/module_adapter.hpp>
-#include <sys/prctl.h>
+
+#include <everest/logging/logging.hpp>
+#include <everest/module_adapter.hpp>
 
 namespace everest {
 
@@ -66,4 +71,4 @@ public:
 
 } // namespace everest
 
-#endif // FRAMEWORK_EVEREST_RUNTIME_HPP
+#endif // EVEREST_RUNTIME_HPP

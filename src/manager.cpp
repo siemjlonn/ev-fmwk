@@ -17,14 +17,15 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/program_options.hpp>
-#include <everest/logging.hpp>
+
 #include <fmt/color.h>
 #include <fmt/core.h>
 
-#include <framework/everest.hpp>
-#include <framework/runtime.hpp>
-#include <utils/config.hpp>
-#include <utils/mqtt_abstraction.hpp>
+#include <everest/everest.hpp>
+#include <everest/logging/logging.hpp>
+#include <everest/runtime.hpp>
+#include <everest/utils/config.hpp>
+#include <everest/utils/mqtt_abstraction.hpp>
 
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
@@ -276,7 +277,7 @@ int boot(const po::variables_map& vm) {
     try {
         // FIXME (aw): we should also use boost::filesystem::path here as argument types
         config = new Config(rs.schemas_dir.string(), rs.config_file.string(), rs.modules_dir.string(),
-                                       rs.interfaces_dir.string());
+                            rs.interfaces_dir.string());
     } catch (EverestInternalError& e) {
         EVLOG(error) << fmt::format("Failed to load and validate config!\n{}", boost::diagnostic_information(e, true));
         return EXIT_FAILURE;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2020 - 2022 Pionix GmbH and Contributors to EVerest
-#ifndef UTILS_MQTT_ABSTRACTION_IMPL_HPP
-#define UTILS_MQTT_ABSTRACTION_IMPL_HPP
+#ifndef EVEREST_UTILS_MQTT_ABSTRACTION_IMPL_HPP
+#define EVEREST_UTILS_MQTT_ABSTRACTION_IMPL_HPP
 
 #include <functional>
 #include <future>
@@ -12,15 +12,13 @@
 #include <vector>
 
 #include <mqtt.h>
-#include <nlohmann/json.hpp>
 
-#include <utils/message_queue.hpp>
-#include <utils/types.hpp>
+#include <everest/types.hpp>
+#include <everest/utils/message_queue.hpp>
 
 #define MQTT_BUF_SIZE 150 * 1024
 
 namespace everest {
-using json = nlohmann::json;
 
 /// \brief Contains a payload and the topic it was received on with additional QOS
 struct MessageWithQOS : Message {
@@ -138,4 +136,4 @@ public:
 };
 } // namespace everest
 
-#endif // UTILS_MQTT_ABSTRACTION_IMPL_HPP
+#endif // EVEREST_UTILS_MQTT_ABSTRACTION_IMPL_HPP

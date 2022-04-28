@@ -4,9 +4,9 @@
 
 #include <fmt/format.h>
 
-#include <everest/logging.hpp>
+#include <everest/logging/logging.hpp>
 
-#include <utils/message_queue.hpp>
+#include <everest/utils/message_queue.hpp>
 
 namespace everest {
 

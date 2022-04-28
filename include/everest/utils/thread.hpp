@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2020 - 2021 Pionix GmbH and Contributors to EVerest
-#ifndef UTILS_THREAD_HPP
-#define UTILS_THREAD_HPP
+#ifndef EVEREST_UTILS_THREAD_HPP
+#define EVEREST_UTILS_THREAD_HPP
 
 #include <chrono>
 #include <future>
@@ -23,4 +23,4 @@ private:
 };
 } // namespace everest
 
-#endif // UTILS_THREAD_HPP
+#endif // EVEREST_UTILS_THREAD_HPP

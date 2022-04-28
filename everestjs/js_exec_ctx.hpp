@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2020 - 2021 Pionix GmbH and Contributors to EVerest
+// Copyright 2020 - 2022 Pionix GmbH and Contributors to EVerest
 
 //
 // author: aw@pionix.de
 //
 
-#ifndef JS_EXEC_CTX_HPP
-#define JS_EXEC_CTX_HPP
+#ifndef EVERESTJS_JS_EXEC_CTX_HPP
+#define EVERESTJS_JS_EXEC_CTX_HPP
 
 #include <future>
 
@@ -53,4 +53,4 @@ private:
     std::promise<void> promise;
 };
 
-#endif // JS_EXEC_CTX_HPP
+#endif // EVERESTJS_JS_EXEC_CTX_HPP

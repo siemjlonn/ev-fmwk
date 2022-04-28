@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2020 - 2022 Pionix GmbH and Contributors to EVerest
-#ifndef MODULE_ADAPTER_HPP
-#define MODULE_ADAPTER_HPP
+#ifndef EVEREST_MODULE_ADAPTER_HPP
+#define EVEREST_MODULE_ADAPTER_HPP
 
 #include "everest.hpp"
 #include <iostream>
@@ -174,4 +174,4 @@ private:
 
 } // namespace Everest
 
-#endif // MODULE_ADAPTER_HPP
+#endif // EVEREST_MODULE_ADAPTER_HPP

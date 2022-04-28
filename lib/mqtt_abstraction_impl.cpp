@@ -14,10 +14,10 @@
 #include <boost/algorithm/string/split.hpp>
 #include <fmt/format.h>
 
-#include <everest/exceptions.hpp>
-#include <everest/logging.hpp>
+#include <everest/logging/exceptions.hpp>
+#include <everest/logging/logging.hpp>
 
-#include <utils/mqtt_abstraction_impl.hpp>
+#include <everest/utils/mqtt_abstraction_impl.hpp>
 
 namespace everest {
 const auto mqtt_sync_sleep_milliseconds = 10;

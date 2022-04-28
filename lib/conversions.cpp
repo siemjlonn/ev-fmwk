@@ -3,10 +3,10 @@
 #include <boost/current_function.hpp>
 #include <fmt/core.h>
 
-#include <everest/exceptions.hpp>
-#include <everest/logging.hpp>
+#include <everest/logging/exceptions.hpp>
+#include <everest/logging/logging.hpp>
 
-#include <utils/conversions.hpp>
+#include <everest/utils/conversions.hpp>
 
 namespace everest {
 
@@ -26,10 +26,10 @@ template <> json convertTo<json>(Result retval) {
             return boost::any_cast<int>(ret_any);
         } else if (ret_any.type() == typeid(bool)) {
             return boost::any_cast<bool>(ret_any);
-        } else if (ret_any.type() == typeid(Array)) {
-            return boost::any_cast<Array>(ret_any);
-        } else if (ret_any.type() == typeid(Object)) {
-            return boost::any_cast<Object>(ret_any);
+        } else if (ret_any.type() == typeid(types::Array)) {
+            return boost::any_cast<types::Array>(ret_any);
+        } else if (ret_any.type() == typeid(types::Object)) {
+            return boost::any_cast<types::Object>(ret_any);
         } else {
             EVLOG_AND_THROW(EverestApiError(fmt::format("WRONG C++ TYPE: {}", ret_any.type().name()))); // FIXME
         }
@@ -48,9 +48,9 @@ template <> Result convertTo<Result>(json data) {
     } else if (data.is_boolean()) {
         retval = data.get<bool>();
     } else if (data.is_array()) {
-        retval = data.get<Array>();
+        retval = data.get<types::Array>();
     } else if (data.is_object()) {
-        retval = data.get<Object>();
+        retval = data.get<types::Object>();
     } else if (data.is_null()) {
         retval = boost::blank();
     } else {
@@ -73,10 +73,10 @@ template <> json convertTo<json>(Parameters params) {
             j[param.first] = boost::any_cast<int>(param.second);
         } else if (param.second.type() == typeid(bool)) {
             j[param.first] = boost::any_cast<bool>(param.second);
-        } else if (param.second.type() == typeid(Array)) {
-            j[param.first] = boost::any_cast<Array>(param.second);
-        } else if (param.second.type() == typeid(Object)) {
-            j[param.first] = boost::any_cast<Object>(param.second);
+        } else if (param.second.type() == typeid(types::Array)) {
+            j[param.first] = boost::any_cast<types::Array>(param.second);
+        } else if (param.second.type() == typeid(types::Object)) {
+            j[param.first] = boost::any_cast<types::Object>(param.second);
         } else {
             EVLOG_AND_THROW(EverestApiError(fmt::format("WRONG C++ TYPE: {}", param.second.type().name()))); // FIXME
         }
@@ -98,9 +98,9 @@ template <> Parameters convertTo<Parameters>(json data) {
         } else if (value.is_boolean()) {
             params[arg.key()] = value.get<bool>();
         } else if (value.is_array()) {
-            params[arg.key()] = value.get<Array>();
+            params[arg.key()] = value.get<types::Array>();
         } else if (value.is_object()) {
-            params[arg.key()] = value.get<Object>();
+            params[arg.key()] = value.get<types::Object>();
         } else if (value.is_null()) {
             params[arg.key()] = boost::blank();
         } else {
@@ -123,10 +123,10 @@ template <> json convertTo<json>(Value value) {
         return boost::any_cast<int>(value);
     } else if (value.type() == typeid(bool)) {
         return boost::any_cast<bool>(value);
-    } else if (value.type() == typeid(Array)) {
-        return boost::any_cast<Array>(value);
-    } else if (value.type() == typeid(Object)) {
-        return boost::any_cast<Object>(value);
+    } else if (value.type() == typeid(types::Array)) {
+        return boost::any_cast<types::Array>(value);
+    } else if (value.type() == typeid(types::Object)) {
+        return boost::any_cast<types::Object>(value);
     } else {
         EVLOG_AND_THROW(EverestApiError(fmt::format("WRONG C++ TYPE: {}", value.type().name()))); // FIXME
     }
@@ -143,9 +143,9 @@ template <> Value convertTo<Value>(json data) {
     } else if (data.is_boolean()) {
         return data.get<bool>();
     } else if (data.is_array()) {
-        return data.get<Array>();
+        return data.get<types::Array>();
     } else if (data.is_object()) {
-        return data.get<Object>();
+        return data.get<types::Object>();
     } else if (data.is_null()) {
         return boost::blank();
     } else {

@@ -2,7 +2,7 @@
 // Copyright 2020 - 2022 Pionix GmbH and Contributors to EVerest
 #include <catch2/catch.hpp>
 
-#include <framework/everest.hpp>
+#include <everest/everest.hpp>
 
 SCENARIO("Check config parser", "[!throws]") {
     GIVEN("An empty config") {

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2020 - 2022 Pionix GmbH and Contributors to EVerest
-#include <everest/logging.hpp>
+#include <everest/logging/logging.hpp>
 
-#include <utils/mqtt_abstraction.hpp>
-#include <utils/mqtt_abstraction_impl.hpp>
+#include <everest/utils/mqtt_abstraction.hpp>
+#include <everest/utils/mqtt_abstraction_impl.hpp>
 
 namespace everest {
 MQTTAbstraction::MQTTAbstraction(const std::string& mqtt_server_address, const std::string& mqtt_server_port) :

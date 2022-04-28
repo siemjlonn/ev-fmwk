@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2020 - 2022 Pionix GmbH and Contributors to EVerest
-#ifndef UTILS_MESSAGE_QUEUE_HPP
-#define UTILS_MESSAGE_QUEUE_HPP
+#ifndef EVEREST_UTILS_MESSAGE_QUEUE_HPP
+#define EVEREST_UTILS_MESSAGE_QUEUE_HPP
 
 #include <condition_variable>
 #include <functional>
@@ -12,12 +12,9 @@
 #include <thread>
 #include <unordered_set>
 
-#include <nlohmann/json.hpp>
-
-#include <utils/types.hpp>
+#include <everest/types.hpp>
 
 namespace everest {
-using json = nlohmann::json;
 
 /// \brief Contains a payload and the topic it was received on
 struct Message {
@@ -85,4 +82,4 @@ public:
 
 } // namespace everest
 
-#endif // UTILS_MESSAGE_QUEUE_HPP
+#endif // EVEREST_UTILS_MESSAGE_QUEUE_HPP

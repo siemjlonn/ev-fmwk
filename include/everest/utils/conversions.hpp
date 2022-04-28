@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2020 - 2021 Pionix GmbH and Contributors to EVerest
-#ifndef UTILS_CONVERSIONS_HPP
-#define UTILS_CONVERSIONS_HPP
+// Copyright 2020 - 2022 Pionix GmbH and Contributors to EVerest
+#ifndef EVEREST_UTILS_CONVERSIONS_HPP
+#define EVEREST_UTILS_CONVERSIONS_HPP
 
-#include <nlohmann/json.hpp>
-
-#include <utils/types.hpp>
+#include <everest/types.hpp>
 
 namespace everest {
-using json = nlohmann::json;
 
 template <class R, class V> R convertTo(V);
 
@@ -21,4 +18,4 @@ template <> Value convertTo<Value>(json data);
 
 } // namespace everest
 
-#endif // UTILS_CONVERSIONS_HPP
+#endif // EVEREST_UTILS_CONVERSIONS_HPP

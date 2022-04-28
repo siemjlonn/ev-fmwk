@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2020 - 2022 Pionix GmbH and Contributors to EVerest
-#ifndef UTILS_CONFIG_HPP
-#define UTILS_CONFIG_HPP
+#ifndef EVEREST_UTILS_CONFIG_HPP
+#define EVEREST_UTILS_CONFIG_HPP
 
 #include <regex>
 #include <set>
@@ -10,7 +10,7 @@
 #include <boost/filesystem.hpp>
 #include <nlohmann/json-schema.hpp>
 
-#include <utils/types.hpp>
+#include <everest/types.hpp>
 
 namespace everest {
 using json = nlohmann::json;
@@ -183,4 +183,4 @@ public:
 };
 } // namespace everest
 
-#endif // UTILS_CONFIG_HPP
+#endif // EVEREST_UTILS_CONFIG_HPP

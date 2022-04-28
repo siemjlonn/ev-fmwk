@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2020 - 2022 Pionix GmbH and Contributors to EVerest
-#ifndef FRAMEWORK_EVEREST_HPP
-#define FRAMEWORK_EVEREST_HPP
+#ifndef EVEREST_EVEREST_HPP
+#define EVEREST_EVEREST_HPP
 
 #include <chrono>
 #include <future>
@@ -9,11 +9,11 @@
 #include <set>
 #include <thread>
 
-#include <everest/exceptions.hpp>
+#include <everest/logging/exceptions.hpp>
 
-#include <utils/config.hpp>
-#include <utils/mqtt_abstraction.hpp>
-#include <utils/types.hpp>
+#include <everest/types.hpp>
+#include <everest/utils/config.hpp>
+#include <everest/utils/mqtt_abstraction.hpp>
 
 namespace everest {
 ///
@@ -166,4 +166,4 @@ public:
 };
 } // namespace everest
 
-#endif // FRAMEWORK_EVEREST_HPP
+#endif // EVEREST_EVEREST_HPP
