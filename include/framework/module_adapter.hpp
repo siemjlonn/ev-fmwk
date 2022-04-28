@@ -8,7 +8,7 @@
 
 #include <iomanip>
 
-namespace Everest {
+namespace everest {
 
 // FIXME (aw): proper namespacing for these utility classes and functions
 

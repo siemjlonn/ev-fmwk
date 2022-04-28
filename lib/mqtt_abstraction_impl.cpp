@@ -19,7 +19,7 @@
 
 #include <utils/mqtt_abstraction_impl.hpp>
 
-namespace Everest {
+namespace everest {
 const auto mqtt_sync_sleep_milliseconds = 10;
 const auto mqtt_keep_alive = 400;
 
@@ -465,4 +465,4 @@ void MQTTAbstractionImpl::publish_callback(void** state, struct mqtt_response_pu
         std::string(static_cast<const char*>(published->application_message), published->application_message_size)));
 }
 
-} // namespace Everest
+} // namespace everest

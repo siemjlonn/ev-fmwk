@@ -15,7 +15,7 @@
 #include <framework/everest.hpp>
 #include <utils/conversions.hpp>
 
-namespace Everest {
+namespace everest {
 const auto remote_cmd_res_timeout_seconds = 300;
 
 Everest::Everest(std::string module_id, Config config, bool validate_data_with_schema,
@@ -691,4 +691,4 @@ bool Everest::check_arg(ArgumentType arg_types, json manifest_arg) {
     }
     return true;
 }
-} // namespace Everest
+} // namespace everest

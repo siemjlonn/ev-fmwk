@@ -16,7 +16,7 @@
 
 #include <utils/types.hpp>
 
-namespace Everest {
+namespace everest {
 using json = nlohmann::json;
 
 /// \brief Contains a payload and the topic it was received on
@@ -83,6 +83,6 @@ public:
     size_t count_handlers();
 };
 
-} // namespace Everest
+} // namespace everest
 
 #endif // UTILS_MESSAGE_QUEUE_HPP

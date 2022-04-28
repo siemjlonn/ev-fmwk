@@ -6,10 +6,10 @@
 #include <everest/logging.hpp>
 #include <fmt/color.h>
 #include <fmt/core.h>
-#include <framework/ModuleAdapter.hpp>
+#include <framework/module_adapter.hpp>
 #include <sys/prctl.h>
 
-namespace Everest {
+namespace everest {
 
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
@@ -64,6 +64,6 @@ public:
     int initialize();
 };
 
-} // namespace Everest
+} // namespace everest
 
 #endif // FRAMEWORK_EVEREST_RUNTIME_HPP

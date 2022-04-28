@@ -9,7 +9,7 @@
 
 #include <utils/types.hpp>
 
-namespace Everest {
+namespace everest {
 using json = nlohmann::json;
 
 class MQTTAbstractionImpl;
@@ -85,6 +85,6 @@ public:
     MQTTAbstraction(MQTTAbstraction const&) = delete;
     void operator=(MQTTAbstraction const&) = delete;
 };
-} // namespace Everest
+} // namespace everest
 
 #endif // UTILS_MQTT_ABSTRACTION_HPP

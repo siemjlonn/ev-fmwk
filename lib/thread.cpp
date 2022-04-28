@@ -2,7 +2,7 @@
 // Copyright 2020 - 2021 Pionix GmbH and Contributors to EVerest
 #include <utils/thread.hpp>
 
-namespace Everest {
+namespace everest {
 Thread::Thread() {
     exitFuture = exitSignal.get_future();
 }
@@ -23,4 +23,4 @@ void Thread::operator=(std::thread&& t) {
     handle = std::move(t);
 }
 
-} // namespace Everest
+} // namespace everest

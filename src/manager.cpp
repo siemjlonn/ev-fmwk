@@ -29,7 +29,7 @@
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 
-using namespace Everest;
+using namespace everest;
 
 const auto PARENT_DIED_SIGNAL = SIGTERM;
 
@@ -249,7 +249,7 @@ int boot(const po::variables_map& vm) {
     bool check = (vm.count("check") != 0);
     RuntimeSettings rs(vm);
 
-    ::Everest::Logging::init(rs.logging_config.string());
+    logging::init(rs.logging_config.string());
 
     EVLOG(debug) << fmt::format("main_dir was set to {}", rs.main_dir.string());
     EVLOG(debug) << fmt::format("main_binary was set to {}", rs.main_binary.string());
@@ -259,7 +259,7 @@ int boot(const po::variables_map& vm) {
         boost::filesystem::path dumpmanifests_path = boost::filesystem::path(vm["dumpmanifests"].as<std::string>());
         EVLOG(info) << fmt::format("Dumping all known validated manifests into '{}'", dumpmanifests_path.string());
 
-        auto manifests = ::Everest::Config::load_all_manifests(rs.modules_dir.string(), rs.schemas_dir.string());
+        auto manifests = Config::load_all_manifests(rs.modules_dir.string(), rs.schemas_dir.string());
 
         for (const auto& module : manifests.items()) {
             std::string filename = module.key() + ".json";
@@ -272,12 +272,12 @@ int boot(const po::variables_map& vm) {
         return EXIT_SUCCESS;
     }
 
-    ::Everest::Config* config = nullptr;
+    Config* config = nullptr;
     try {
         // FIXME (aw): we should also use boost::filesystem::path here as argument types
-        config = new ::Everest::Config(rs.schemas_dir.string(), rs.config_file.string(), rs.modules_dir.string(),
+        config = new Config(rs.schemas_dir.string(), rs.config_file.string(), rs.modules_dir.string(),
                                        rs.interfaces_dir.string());
-    } catch (::Everest::EverestInternalError& e) {
+    } catch (EverestInternalError& e) {
         EVLOG(error) << fmt::format("Failed to load and validate config!\n{}", boost::diagnostic_information(e, true));
         return EXIT_FAILURE;
     } catch (boost::exception& e) {
@@ -341,8 +341,8 @@ int boot(const po::variables_map& vm) {
         mqtt_server_port = "1883";
     }
 
-    ::Everest::MQTTAbstraction& mqtt_abstraction =
-        ::Everest::MQTTAbstraction::get_instance(mqtt_server_address, mqtt_server_port);
+    ::everest::MQTTAbstraction& mqtt_abstraction =
+        ::everest::MQTTAbstraction::get_instance(mqtt_server_address, mqtt_server_port);
     mqtt_abstraction.connect();
 
     mqtt_abstraction.spawn_main_loop_thread();

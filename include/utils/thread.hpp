@@ -7,7 +7,7 @@
 #include <future>
 #include <thread>
 
-namespace Everest {
+namespace everest {
 class Thread {
 public:
     Thread();
@@ -21,6 +21,6 @@ private:
     std::promise<void> exitSignal;
     std::future<void> exitFuture;
 };
-} // namespace Everest
+} // namespace everest
 
 #endif // UTILS_THREAD_HPP

@@ -5,25 +5,25 @@
 #include <everest/exceptions.hpp>
 #include <everest/logging.hpp>
 
-namespace EverestJs {
+namespace everest_js {
 
-Everest::json convertToJson(const Napi::Value& value) {
+everest::json convertToJson(const Napi::Value& value) {
     BOOST_LOG_FUNCTION();
 
     if (value.IsNull() || value.IsUndefined()) {
-        return Everest::json(nullptr);
+        return everest::json(nullptr);
     } else if (value.IsString()) {
-        return Everest::json(std::string(value.As<Napi::String>()));
+        return everest::json(std::string(value.As<Napi::String>()));
     } else if (value.IsNumber()) {
         int64_t intNumber = value.As<Napi::Number>();
         double floatNumber = value.As<Napi::Number>();
         if (floatNumber == intNumber)
-            return Everest::json(intNumber);
-        return Everest::json(floatNumber);
+            return everest::json(intNumber);
+        return everest::json(floatNumber);
     } else if (value.IsBoolean()) {
-        return Everest::json(bool(value.As<Napi::Boolean>()));
+        return everest::json(bool(value.As<Napi::Boolean>()));
     } else if (value.IsArray()) {
-        auto j = Everest::json::array();
+        auto j = everest::json::array();
         Napi::Array array = value.As<Napi::Array>();
         for (uint64_t i = 0; i < array.Length(); i++) {
             Napi::Value entry = Napi::Value(array[i]);
@@ -31,7 +31,7 @@ Everest::json convertToJson(const Napi::Value& value) {
         }
         return j;
     } else if (value.IsObject() && value.Type() == napi_object) {
-        auto j = Everest::json({});
+        auto j = everest::json({});
         Napi::Object obj = value.As<Napi::Object>();
         Napi::Array keys = obj.GetPropertyNames();
         for (uint64_t i = 0; i < keys.Length(); i++) {
@@ -41,14 +41,14 @@ Everest::json convertToJson(const Napi::Value& value) {
                 Napi::Value v = Napi::Value(obj[k]);
                 j[k] = convertToJson(v);
             } else {
-                EVTHROW(EVEXCEPTION(Everest::EverestApiError,
+                EVTHROW(EVEXCEPTION(everest::EverestApiError,
                                     "Javascript type of object key can not be converted to Everest::json: ",
                                     napi_valuetype_strings[key.Type()]));
             }
         }
         return j;
     }
-    EVTHROW(EVEXCEPTION(Everest::EverestApiError, "Javascript type can not be converted to Everest::json: ",
+    EVTHROW(EVEXCEPTION(everest::EverestApiError, "Javascript type can not be converted to Everest::json: ",
                         napi_valuetype_strings[value.Type()]));
 }
 
@@ -78,7 +78,7 @@ Napi::Value convertToNapiValue(const Napi::Env& env, const json& value) {
         }
         return v;
     }
-    EVTHROW(EVEXCEPTION(Everest::EverestApiError, "Javascript type can not be converted to Napi::Value: ", value));
+    EVTHROW(EVEXCEPTION(everest::EverestApiError, "Javascript type can not be converted to Napi::Value: ", value));
 }
 
-} // namespace EverestJs
+} // namespace everest_js

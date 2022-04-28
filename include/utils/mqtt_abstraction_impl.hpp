@@ -19,7 +19,7 @@
 
 #define MQTT_BUF_SIZE 150 * 1024
 
-namespace Everest {
+namespace everest {
 using json = nlohmann::json;
 
 /// \brief Contains a payload and the topic it was received on with additional QOS
@@ -136,6 +136,6 @@ public:
     MQTTAbstractionImpl(MQTTAbstractionImpl const&) = delete;
     void operator=(MQTTAbstractionImpl const&) = delete;
 };
-} // namespace Everest
+} // namespace everest
 
 #endif // UTILS_MQTT_ABSTRACTION_IMPL_HPP

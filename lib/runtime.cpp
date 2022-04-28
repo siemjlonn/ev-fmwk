@@ -3,7 +3,7 @@
 
 #include <framework/runtime.hpp>
 
-namespace Everest {
+namespace everest {
 RuntimeSettings::RuntimeSettings(const po::variables_map& vm) : main_dir(vm["main_dir"].as<std::string>()) {
     if (vm.count("schemas_dir")) {
         schemas_dir = vm["schemas_dir"].as<std::string>();
@@ -69,7 +69,7 @@ int ModuleLoader::initialize() {
 
     auto& rs = this->runtime_settings;
 
-    Logging::init(rs->logging_config.string(), this->module_id);
+    logging::init(rs->logging_config.string(), this->module_id);
 
     try {
         Config config = Config(rs->schemas_dir.string(), rs->config_file.string(), rs->modules_dir.string(),
@@ -88,7 +88,7 @@ int ModuleLoader::initialize() {
             EVLOG(warning) << fmt::format("Could not set process name to '{}', it remains '{}'", module_identifier,
                                           this->original_process_name);
         }
-        Logging::update_process_name(module_identifier);
+        logging::update_process_name(module_identifier);
 
         // NOLINTNEXTLINE(concurrency-mt-unsafe): not problematic that this function is not threadsafe here
         const char* mqtt_server_address = std::getenv("MQTT_SERVER_ADDRESS");
@@ -209,4 +209,4 @@ bool ModuleLoader::parse_command_line(int argc, char* argv[]) {
     return true;
 }
 
-} // namespace Everest
+} // namespace everest

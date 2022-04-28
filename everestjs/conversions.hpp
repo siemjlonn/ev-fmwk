@@ -10,7 +10,7 @@
 #include <utils/conversions.hpp>
 #include <utils/types.hpp>
 
-namespace EverestJs {
+namespace everest_js {
 
 static const char* const napi_valuetype_strings[] = {
     "undefined", //
@@ -25,9 +25,9 @@ static const char* const napi_valuetype_strings[] = {
     "bigint",    //
 };
 
-Everest::json convertToJson(const Napi::Value& value);
-Napi::Value convertToNapiValue(const Napi::Env& env, const Everest::json& value);
+everest::json convertToJson(const Napi::Value& value);
+Napi::Value convertToNapiValue(const Napi::Env& env, const everest::json& value);
 
-} // namespace EverestJs
+} // namespace everest_js
 
 #endif // CONVERSIONS_HPP

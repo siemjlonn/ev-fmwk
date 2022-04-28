@@ -8,7 +8,7 @@
 
 #include <utils/conversions.hpp>
 
-namespace Everest {
+namespace everest {
 
 template <> json convertTo<json>(Result retval) {
     BOOST_LOG_FUNCTION();
@@ -153,4 +153,4 @@ template <> Value convertTo<Value>(json data) {
     }
 }
 
-} // namespace Everest
+} // namespace everest

@@ -8,7 +8,7 @@
 
 #include <utils/message_queue.hpp>
 
-namespace Everest {
+namespace everest {
 
 Message::Message(const std::string& topic, const std::string& payload) : topic(topic), payload(payload) {
 }
@@ -163,4 +163,4 @@ MessageHandler::~MessageHandler() {
     handler_thread.join();
 }
 
-} // namespace Everest
+} // namespace everest

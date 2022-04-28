@@ -12,7 +12,7 @@
 
 #include <utils/types.hpp>
 
-namespace Everest {
+namespace everest {
 using json = nlohmann::json;
 using json_uri = nlohmann::json_uri;
 using json_validator = nlohmann::json_schema::json_validator;
@@ -181,6 +181,6 @@ public:
     ///
     static void format_checker(const std::string& format, const std::string& value);
 };
-} // namespace Everest
+} // namespace everest
 
 #endif // UTILS_CONFIG_HPP

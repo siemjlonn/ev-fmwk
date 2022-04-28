@@ -7,7 +7,7 @@
 
 #include <utils/types.hpp>
 
-namespace Everest {
+namespace everest {
 using json = nlohmann::json;
 
 template <class R, class V> R convertTo(V);
@@ -19,6 +19,6 @@ template <> Parameters convertTo<Parameters>(json data);
 template <> json convertTo<json>(Value value);
 template <> Value convertTo<Value>(json data);
 
-} // namespace Everest
+} // namespace everest
 
 #endif // UTILS_CONVERSIONS_HPP

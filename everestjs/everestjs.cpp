@@ -20,19 +20,19 @@
 #include "js_exec_ctx.hpp"
 #include "utils.hpp"
 
-namespace EverestJs {
+namespace everest_js {
 
 struct EvModCtx {
-    EvModCtx(Everest::Everest& everest, const Everest::json& module_manifest, const Napi::Env& env) :
-        everest(everest),
+    EvModCtx(everest::Everest& ev, const everest::json& module_manifest, const Napi::Env& env) :
+        ev(ev),
         module_manifest(module_manifest),
         framework_ready_deferred(Napi::Promise::Deferred::New(env)),
         framework_ready_flag{false} {
         framework_ready_promise = Napi::Persistent(framework_ready_deferred.Promise());
     };
-    Everest::Everest& everest;
-    // std::unique_ptr<Everest::Config> config;
-    const Everest::json module_manifest;
+    everest::Everest& ev;
+    // std::unique_ptr<everest::Config> config;
+    const everest::json module_manifest;
 
     const Napi::Promise::Deferred framework_ready_deferred;
     Napi::Reference<Napi::Promise> framework_ready_promise;
@@ -56,7 +56,7 @@ static Napi::Value publish_var(const std::string& impl_id, const std::string& va
     const auto& env = info.Env();
 
     try {
-        ctx->everest.publish_var(impl_id, var_name, convertToJson(info[0]));
+        ctx->ev.publish_var(impl_id, var_name, convertToJson(info[0]));
     } catch (std::exception& e) {
         EVLOG_AND_RETHROW(env);
     }
@@ -77,15 +77,15 @@ static Napi::Value setup_cmd_handler(const std::string& impl_id, const std::stri
         auto& cmd_handlers = ctx->cmd_handlers;
 
         if (cmd_handlers.find(cmd_key) != cmd_handlers.end()) {
-            EVTHROW(EVEXCEPTION(Everest::EverestApiError, "Attaching more than one handler to ", impl_id, "->",
+            EVTHROW(EVEXCEPTION(everest::EverestApiError, "Attaching more than one handler to ", impl_id, "->",
                                 cmd_name, " is not yet supported!"));
         }
 
         cmd_handlers.insert({cmd_key, Napi::Persistent(handler)});
         // FIXME (aw): in principle we could also pass this reference down to js_cb
 
-        ctx->everest.provide_cmd(impl_id, cmd_name, [cmd_key](Everest::json input) -> Everest::json {
-            Everest::json result;
+        ctx->ev.provide_cmd(impl_id, cmd_name, [cmd_key](everest::json input) -> everest::json {
+            everest::json result;
 
             ctx->js_cb->exec(
                 [&input, &cmd_key](Napi::Env& env) {
@@ -125,13 +125,13 @@ static Napi::Value set_var_subscription_handler(const Requirement& req, const st
 
         if (var_subs.find(sub_key) != var_subs.end()) {
             // FIXME (aw): error handling, if var is already subscribed
-            EVTHROW(EVEXCEPTION(Everest::EverestApiError, "Subscribing to ", req.id, "->", var_name,
+            EVTHROW(EVEXCEPTION(everest::EverestApiError, "Subscribing to ", req.id, "->", var_name,
                                 " more than once is not yet supported!"));
         }
         var_subs.insert({sub_key, Napi::Persistent(handler)});
 
         // FIXME (aw): in principle we could also pass this reference down to js_cb
-        ctx->everest.subscribe_var(req, var_name, [sub_key](Everest::json input) {
+        ctx->ev.subscribe_var(req, var_name, [sub_key](everest::json input) {
             ctx->js_cb->exec(
                 [&input, &sub_key](Napi::Env& env) {
                     const auto& arg = convertToNapiValue(env, input);
@@ -155,7 +155,7 @@ static Napi::Value signal_ready(const Napi::CallbackInfo& info) {
     Napi::Value retval;
 
     try {
-        ctx->everest.signal_ready();
+        ctx->ev.signal_ready();
         retval = ctx->framework_ready_promise.Value();
     } catch (std::exception& e) {
         EVLOG_AND_RETHROW(env);
@@ -189,7 +189,7 @@ static Napi::Value mqtt_publish(const Napi::CallbackInfo& info) {
         const auto& topic_alias = info[0].ToString().Utf8Value();
         const auto& data = info[1].ToString().Utf8Value();
 
-        ctx->everest.external_mqtt_publish(topic_alias, data);
+        ctx->ev.external_mqtt_publish(topic_alias, data);
     } catch (std::exception& e) {
         EVLOG_AND_RETHROW(env);
     }
@@ -209,13 +209,13 @@ static Napi::Value mqtt_subscribe(const Napi::CallbackInfo& info) {
         auto& mqtt_subs = ctx->mqtt_subscriptions;
 
         if (mqtt_subs.find(topic_alias) != mqtt_subs.end()) {
-            EVTHROW(EVEXCEPTION(Everest::EverestApiError, "Subscribing to external mqtt topic alias '", topic_alias,
+            EVTHROW(EVEXCEPTION(everest::EverestApiError, "Subscribing to external mqtt topic alias '", topic_alias,
                                 "' more than once is not yet supported!"));
         }
 
         ctx->mqtt_subscriptions.insert({topic_alias, Napi::Persistent(handler)});
 
-        ctx->everest.provide_external_mqtt_handler(topic_alias, [topic_alias](std::string data) {
+        ctx->ev.provide_external_mqtt_handler(topic_alias, [topic_alias](std::string data) {
             ctx->js_cb->exec(
                 [&topic_alias, &data](Napi::Env& env) {
                     // in case we're not ready, the mod argument of the subscribe handler will be undefined, so no
@@ -234,8 +234,7 @@ static Napi::Value mqtt_subscribe(const Napi::CallbackInfo& info) {
     return env.Undefined();
 }
 
-static Napi::Value call_cmd(const Requirement& req, const std::string& cmd_name,
-                            const Napi::CallbackInfo& info) {
+static Napi::Value call_cmd(const Requirement& req, const std::string& cmd_name, const Napi::CallbackInfo& info) {
     BOOST_LOG_FUNCTION();
 
     const auto& env = info.Env();
@@ -243,7 +242,7 @@ static Napi::Value call_cmd(const Requirement& req, const std::string& cmd_name,
 
     try {
         const auto& argument = convertToJson(info[0]);
-        const auto& retval = ctx->everest.call_cmd(req, cmd_name, argument);
+        const auto& retval = ctx->ev.call_cmd(req, cmd_name, argument);
 
         cmd_result = convertToNapiValue(info.Env(), retval["retval"]);
     } catch (std::exception& e) {
@@ -279,11 +278,11 @@ static Napi::Value boot_module(const Napi::CallbackInfo& info) {
         const auto& mqtt_server_port = settings.Get("mqtt_server_port").ToString().Utf8Value();
 
         // initialize logging as early as possible
-        Everest::Logging::init(log_config_file, module_id);
+        everest::logging::init(log_config_file, module_id);
 
-        auto config = std::make_unique<Everest::Config>(schemas_dir, config_file, modules_dir, interfaces_dir);
+        auto config = std::make_unique<everest::Config>(schemas_dir, config_file, modules_dir, interfaces_dir);
         if (!config->contains(module_id)) {
-            EVTHROW(EVEXCEPTION(Everest::EverestConfigError,
+            EVTHROW(EVEXCEPTION(everest::EverestConfigError,
                                 "Module with identifier '" << module_id << "' not found in config!"));
         }
 
@@ -300,17 +299,17 @@ static Napi::Value boot_module(const Napi::CallbackInfo& info) {
             EVLOG(warning) << "Could not set process name to '" << module_identifier << "'";
         }
 
-        Everest::Logging::update_process_name(module_identifier);
+        everest::logging::update_process_name(module_identifier);
 
         // connect to mqtt server and start mqtt mainloop thread
         ctx = new EvModCtx(
-            Everest::Everest::get_instance(module_id, *config, validate_schema, mqtt_server_address, mqtt_server_port),
+            everest::Everest::get_instance(module_id, *config, validate_schema, mqtt_server_address, mqtt_server_port),
             module_manifest, env);
-        ctx->everest.connect();
+        ctx->ev.connect();
 
         ctx->js_module_ref = Napi::Persistent(module_this);
 
-        ctx->everest.spawn_main_loop_thread();
+        ctx->ev.spawn_main_loop_thread();
 
         ctx->js_cb = std::make_unique<JsExecCtx>(env, callback_wrapper);
 
@@ -403,8 +402,8 @@ static Napi::Value boot_module(const Napi::CallbackInfo& info) {
                 // we only want cmds/vars from the required interface to be usable, not from it's child interfaces
                 std::string interface_name = req_route["required_interface"].get<std::string>();
                 auto requirement_impl_intf = config->get_interface_definition(interface_name);
-                auto requirement_vars = Everest::Config::keys(requirement_impl_intf["vars"]);
-                auto requirement_cmds = Everest::Config::keys(requirement_impl_intf["cmds"]);
+                auto requirement_vars = everest::Config::keys(requirement_impl_intf["vars"]);
+                auto requirement_cmds = everest::Config::keys(requirement_impl_intf["cmds"]);
 
                 auto var_subscribe_prop = Napi::Object::New(env);
                 for (auto const& var_name : requirement_vars) {
@@ -520,7 +519,7 @@ static Napi::Value boot_module(const Napi::CallbackInfo& info) {
 
         module_this.DefineProperty(Napi::PropertyDescriptor::Value("info", module_info_prop, napi_enumerable));
 
-        ctx->everest.register_on_ready_handler(framework_ready_handler);
+        ctx->ev.register_on_ready_handler(framework_ready_handler);
     } catch (std::exception& e) {
         EVLOG_AND_RETHROW(env);
     }
@@ -573,4 +572,4 @@ static Napi::Object Init(Napi::Env env, Napi::Object exports) {
 
 NODE_API_MODULE(everestjs, Init)
 
-} // namespace EverestJs
+} // namespace everest_js

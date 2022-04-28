@@ -15,7 +15,7 @@
 #include <utils/mqtt_abstraction.hpp>
 #include <utils/types.hpp>
 
-namespace Everest {
+namespace everest {
 ///
 /// \brief A structure that contains a command definition for a cmd of a module
 ///
@@ -164,6 +164,6 @@ public:
     Everest(Everest const&) = delete;
     void operator=(Everest const&) = delete;
 };
-} // namespace Everest
+} // namespace everest
 
 #endif // FRAMEWORK_EVEREST_HPP
