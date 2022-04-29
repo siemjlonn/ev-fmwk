@@ -1,0 +1,26 @@
+{
+    "description": "Ping server",
+    "cmds": {
+        "ping": {
+            "description": "ping command",
+            "arguments": {
+                "source": {
+                    "description": "Source of the ping",
+                    "type": [
+                        "string"
+                    ]
+                }
+            },
+            "result": {
+                "description": "echo",
+                "type": "string"
+            }
+        }
+    },
+    "vars": {
+        "status": {
+            "description": "How many pings did I receive",
+            "type": "number"
+        }
+    }
+}

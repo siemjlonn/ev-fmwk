@@ -1,0 +1,23 @@
+{
+    "description": "bla",
+    "cmds": {
+        "cmd_x": {
+            "description": "cmd X",
+            "arguments": {
+                "arg1": {
+                    "description": "arg1 argument",
+                    "type": [
+                        "string",
+                        "number"
+                    ]
+                }
+            }
+        }
+    },
+    "vars": {
+        "var1": {
+            "description": "pub var",
+            "type": "array"
+        }
+    }
+}

@@ -1,0 +1,27 @@
+{
+    "foo": {
+        "module": "mod1",
+        "config_module": {
+            "key": 23
+        },
+        "config_implementation": {
+            "impl1": {
+                "some": "lala"
+            }
+        },
+        "connections": {
+            "req1": [
+                {
+                    "module_id": "bar",
+                    "implementation_id": "impl2"
+                }
+            ]
+        }
+    },
+    "bar": {
+        "module": "mod2",
+        "config_module": {
+            "key": 24
+        }
+    }
+}

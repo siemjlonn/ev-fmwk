@@ -1,104 +1,30 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2020 - 2022 Pionix GmbH and Contributors to EVerest
-#ifndef EVEREST_TYPES_HPP
-#define EVEREST_TYPES_HPP
+#ifndef EVEREST_EVEREST_HPP
+#define EVEREST_EVEREST_HPP
 
-#include <map>
+#include <functional>
 #include <string>
-#include <vector>
 
-#include <boost/any.hpp>
-#include <boost/optional.hpp>
-#include <boost/variant.hpp>
 #include <nlohmann/json.hpp>
 
 namespace everest {
 
-using json = nlohmann::json;
-using Value = boost::any;
-using Parameters = std::map<std::string, boost::any>;
-using Result = boost::optional<boost::any>;
-using JsonCommand = std::function<json(json)>;
-using Command = std::function<boost::optional<boost::any>(Parameters)>;
-using ArgumentType = std::vector<std::string>;
-using Arguments = std::map<std::string, ArgumentType>;
-using ReturnType = std::vector<std::string>;
-using JsonCallback = std::function<void(json)>;
-using ValueCallback = std::function<void(Value)>;
-using ConfigEntry = boost::variant<std::string, double, int, bool>;
-using ConfigMap = std::map<std::string, ConfigEntry>;
-using ModuleConfigs = std::map<std::string, ConfigMap>;
+using Value = nlohmann::json;
+using Arguments = nlohmann::json;
 
-// TODO (aw): can we pass the handler arguments by const ref?
-using Handler = std::function<void(json)>;
-using StringHandler = std::function<void(std::string)>;
+using CommandHandler = std::function<Value(const Arguments&)>;
+using PublishFunction = std::function<void(const Value&)>;
+using CallFunction = std::function<Value(const Arguments&)>;
+using MQTTSubscriptionHandler = std::function<void(const std::string&)>;
+using SubscriptionHandler = std::function<void(const Value&)>;
 
-enum class HandlerType
-{
-    Call,
-    Result,
-    SubscribeVar,
-    ExternalMQTT,
-    Unknown
-};
+using UnsubscriptionCallback = std::function<void(void)>;
 
-struct TypedHandler {
-    std::string name;
-    std::string id;
-    HandlerType type;
-    std::shared_ptr<Handler> handler;
-
-    TypedHandler(const std::string& name, const std::string& id, HandlerType type, std::shared_ptr<Handler> handler) :
-        name(name), id(id), type(type), handler(handler) {
-    }
-
-    TypedHandler(const std::string& name, HandlerType type, std::shared_ptr<Handler> handler) :
-        TypedHandler(name, "", type, handler) {
-    }
-
-    TypedHandler(HandlerType type, std::shared_ptr<Handler> handler) : TypedHandler("", "", type, handler) {
-    }
-};
-
-using Token = std::shared_ptr<TypedHandler>;
-
-/// \brief MQTT Quality of service
-enum class QOS
-{
-    QOS0, ///< At most once delivery
-    QOS1, ///< At least once delivery
-    QOS2  ///< Exactly once delivery
-};
-
-struct ModuleInfo {
-    std::string name;
-    std::vector<std::string> authors;
-    std::string license;
-    std::string id;
-};
-
-struct Requirement {
-    Requirement(const std::string& requirement_id, size_t index) : id(requirement_id), index(index){};
-    bool operator<(const Requirement& rhs) const {
-        if (id < rhs.id) {
-            return true;
-        } else if (id == rhs.id) {
-            return (index < rhs.index);
-        } else {
-            return false;
-        }
-    }
-    std::string id;
-    size_t index;
-};
-
-namespace types {
-using Array = json::array_t;
-using Object = json::object_t;
-} // namespace types
+// type related helper routines
+std::string format_value(Value value);
+std::string format_arguments(Arguments arguments);
 
 } // namespace everest
 
-#define EVCALLBACK(function) [](auto&& PH1) { function(std::forward<decltype(PH1)>(PH1)); }
-
-#endif // EVEREST_TYPES_HPP
+#endif // EVEREST_EVEREST_HPP

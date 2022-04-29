@@ -15,16 +15,30 @@ set(INCLUDE_DIR "${PROJECT_SOURCE_DIR}/include")
 add_library(everest SHARED)
 target_sources(everest
     PRIVATE
-        config.cpp
-        everest.cpp
-        message_queue.cpp
-        mqtt_abstraction.cpp
-        mqtt_abstraction_impl.cpp
-        conversions.cpp
-        thread.cpp
-        runtime.cpp
+        config
+        generated_module
+        helpers
+        interface
+        module
+        module_peer     
+        mqtt_io_base
+        mqtt_io_mqttc
+        peer
+        os
+        schema
+        types
+        $<TARGET_OBJECTS:hash_library>
 )
-target_include_directories(everest PUBLIC ${INCLUDE_DIR})
+target_include_directories(everest
+    PUBLIC
+        ${INCLUDE_DIR}
+    PRIVATE
+        ${GENERATED_OUTPUT_DIR}/include
+        $<TARGET_PROPERTY:hash_library,INTERFACE_INCLUDE_DIRECTORIES>
+)
+
+add_dependencies(everest generate_inline_schema_files)
+
 target_link_libraries(everest
     PRIVATE
         Boost::filesystem
@@ -40,6 +54,7 @@ target_link_libraries(everest
 )
 
 # this is important to allow our headers to find the nlohmann_* headers
+# FIXME (aw): why does that work? why not just specify it once?
 target_link_libraries(everest
     INTERFACE
         nlohmann_json_schema_validator::nlohmann_json_schema_validator)

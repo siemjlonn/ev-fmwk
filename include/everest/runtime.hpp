@@ -12,7 +12,6 @@
 #include <fmt/core.h>
 
 #include <everest/logging/logging.hpp>
-#include <everest/module_adapter.hpp>
 
 namespace everest {
 
@@ -40,33 +39,6 @@ struct RuntimeSettings {
     bool validate_schema;
 
     explicit RuntimeSettings(const po::variables_map& vm);
-};
-
-struct ModuleCallbacks {
-    std::function<void(ModuleAdapter module_adapter)> register_module_adapter;
-    std::function<std::vector<cmd>(const json& connections)> everest_register;
-    std::function<void(ModuleConfigs module_configs, const ModuleInfo& info)> init;
-    std::function<void()> ready;
-
-    ModuleCallbacks(const std::function<void(ModuleAdapter module_adapter)>& register_module_adapter,
-                    const std::function<std::vector<cmd>(const json& connections)>& everest_register,
-                    const std::function<void(ModuleConfigs module_configs, const ModuleInfo& info)>& init,
-                    const std::function<void()>& ready);
-};
-
-class ModuleLoader {
-private:
-    std::unique_ptr<RuntimeSettings> runtime_settings;
-    std::string module_id;
-    std::string original_process_name;
-    ModuleCallbacks callbacks;
-
-    bool parse_command_line(int argc, char* argv[]);
-
-public:
-    explicit ModuleLoader(int argc, char* argv[], ModuleCallbacks callbacks);
-
-    int initialize();
 };
 
 } // namespace everest

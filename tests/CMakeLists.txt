@@ -1,64 +1,67 @@
+
+setup_target_for_coverage_gcovr_html(
+    NAME gcovr_coverage
+    EXECUTABLE ctest --output-on-failure
+    EXCLUDE
+        "${CMAKE_SOURCE_DIR}/tests"
+        "${CMAKE_SOURCE_DIR}/3rd_party"
+        "${CMAKE_SOURCE_DIR}/src/manager/main.cpp"
+        "${CMAKE_BINARY_DIR}"
+    DEPENDENCIES tests everest
+)
+
+setup_target_for_coverage_lcov(
+    NAME lcov_coverage
+    EXECUTABLE ctest --output-on-failure
+    EXCLUDE
+    # FIXME (aw): DRY
+        "${CMAKE_SOURCE_DIR}/tests"
+        "${CMAKE_SOURCE_DIR}/3rd_party"
+        "${CMAKE_SOURCE_DIR}/src/manager/main.cpp"
+        "${CMAKE_BINARY_DIR}"
+    DEPENDENCIES tests everest
+)
+# setup catch2 library
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/contrib)
 include(Catch)
 
-add_executable(tests main.cpp test_config.cpp)
+add_library(catch2_loader OBJECT catch2_loader testing_helpers)
+target_include_directories(catch2_loader
+    PUBLIC
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(catch2_loader
+    PUBLIC
+        Catch2::Catch2
+    PRIVATE
+        Boost::filesystem
+        nlohmann_json::nlohmann_json
+)
+
+add_definitions(-DUNIT_TESTING_MODE=1)
+add_definitions(-DTEST_RESOURCES_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}")
+
+# define tests
+add_executable(tests
+    test_config
+    test_helpers
+    test_message_worker
+    test_module
+    test_module_peer
+    test_peer
+    test_schema
+)
 
 target_link_libraries(tests
     PRIVATE
+        catch2_loader
         everest ${CMAKE_DL_LIBS}
         everest::log
-        Catch2::Catch2
+        fmt::fmt
 )
 
 catch_discover_tests(tests)
 
-configure_file(test_configs/valid_config.json ${CMAKE_CURRENT_BINARY_DIR}/valid/config.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/config.json ${CMAKE_CURRENT_BINARY_DIR}/valid/schemes/config.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/manifest.json ${CMAKE_CURRENT_BINARY_DIR}/valid/schemes/manifest.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/interface.json ${CMAKE_CURRENT_BINARY_DIR}/valid/schemes/interface.json COPYONLY)
-
-# missing config.json
-configure_file(${PROJECT_SOURCE_DIR}/schemas/config.json ${CMAKE_CURRENT_BINARY_DIR}/missing_config/schemes/config.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/manifest.json ${CMAKE_CURRENT_BINARY_DIR}/missing_config/schemes/manifest.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/interface.json ${CMAKE_CURRENT_BINARY_DIR}/missing_config/schemes/interface.json COPYONLY)
-
-# broken config.json
-configure_file(test_configs/broken_config.json ${CMAKE_CURRENT_BINARY_DIR}/broken_config/config.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/config.json ${CMAKE_CURRENT_BINARY_DIR}/broken_config/schemes/config.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/manifest.json ${CMAKE_CURRENT_BINARY_DIR}/broken_config/schemes/manifest.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/interface.json ${CMAKE_CURRENT_BINARY_DIR}/broken_config/schemes/interface.json COPYONLY)
-
-# missing module config.json
-configure_file(test_configs/missing_module_config.json ${CMAKE_CURRENT_BINARY_DIR}/missing_module_config/config.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/config.json ${CMAKE_CURRENT_BINARY_DIR}/missing_module_config/schemes/config.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/manifest.json ${CMAKE_CURRENT_BINARY_DIR}/missing_module_config/schemes/manifest.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/interface.json ${CMAKE_CURRENT_BINARY_DIR}/missing_module_config/schemes/interface.json COPYONLY)
-
-# broken manifest.json
-configure_file(test_configs/broken_manifest_config.json ${CMAKE_CURRENT_BINARY_DIR}/broken_manifest/config.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/config.json ${CMAKE_CURRENT_BINARY_DIR}/broken_manifest/schemes/config.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/manifest.json ${CMAKE_CURRENT_BINARY_DIR}/broken_manifest/schemes/manifest.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/interface.json ${CMAKE_CURRENT_BINARY_DIR}/broken_manifest/schemes/interface.json COPYONLY)
-file(COPY test_modules/TESTBrokenManifest DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/broken_manifest/modules)
-
-# broken manifest.json
-configure_file(test_configs/broken_manifest2_config.json ${CMAKE_CURRENT_BINARY_DIR}/broken_manifest2/config.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/config.json ${CMAKE_CURRENT_BINARY_DIR}/broken_manifest2/schemes/config.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/manifest.json ${CMAKE_CURRENT_BINARY_DIR}/broken_manifest2/schemes/manifest.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/interface.json ${CMAKE_CURRENT_BINARY_DIR}/broken_manifest2/schemes/interface.json COPYONLY)
-file(COPY test_modules/TESTBrokenManifest2 DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/broken_manifest2/modules)
-
-# valid manifest.json, missing interface
-configure_file(test_configs/valid_manifest_missing_interface_config.json ${CMAKE_CURRENT_BINARY_DIR}/valid_manifest_missing_interface/config.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/config.json ${CMAKE_CURRENT_BINARY_DIR}/valid_manifest_missing_interface/schemes/config.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/manifest.json ${CMAKE_CURRENT_BINARY_DIR}/valid_manifest_missing_interface/schemes/manifest.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/interface.json ${CMAKE_CURRENT_BINARY_DIR}/valid_manifest_missing_interface/schemes/interface.json COPYONLY)
-file(COPY test_modules/TESTValidManifestMissingInterface DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/valid_manifest_missing_interface/modules)
-
-# valid manifest.json, valid interface
-configure_file(test_interfaces/TESTmissinginterface.json ${CMAKE_CURRENT_BINARY_DIR}/valid_manifest_valid_interface/interfaces/TESTmissinginterface.json COPYONLY)
-configure_file(test_configs/valid_manifest_missing_interface_config.json ${CMAKE_CURRENT_BINARY_DIR}/valid_manifest_valid_interface/config.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/config.json ${CMAKE_CURRENT_BINARY_DIR}/valid_manifest_valid_interface/schemes/config.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/manifest.json ${CMAKE_CURRENT_BINARY_DIR}/valid_manifest_valid_interface/schemes/manifest.json COPYONLY)
-configure_file(${PROJECT_SOURCE_DIR}/schemas/interface.json ${CMAKE_CURRENT_BINARY_DIR}/valid_manifest_valid_interface/schemes/interface.json COPYONLY)
-file(COPY test_modules/TESTValidManifestMissingInterface DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/valid_manifest_valid_interface/modules)
+# add example binaries
+add_subdirectory(examples)

@@ -1,0 +1,34 @@
+{
+    "description": "heck module",
+    "config": {
+        "key": {
+            "description": "bla ba",
+            "type": "number"
+        }
+    },
+    "implements": {
+        "impl1": {
+            "description": "some text",
+            "interface": "unknown",
+            "config": {
+                "some": {
+                    "type": "string",
+                    "description": "why?"
+                }
+            }
+        }
+    },
+    "requires": {
+        "req1": {
+            "interface": "some_foo",
+            "max_connections": 3
+        }
+    },
+    "metadata": {
+        "authors": [
+            "a1",
+            "a1"
+        ],
+        "license": "://MIT"
+    }
+}

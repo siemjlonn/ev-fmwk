@@ -1,0 +1,42 @@
+{
+    "description": "sample_desc",
+    "capabilities": [
+        "fs",
+        "nice"
+    ],
+    "config": {
+        "setting1": {
+            "type": "string",
+            "description": "needless"
+        }
+    },
+    "metadata": {
+        "authors": [
+            "a1",
+            "a2"
+        ],
+        "license": "http://MIT"
+    },
+    "implements": {
+        "impl1": {
+            "interface": "foobar",
+            "description": "impl1 whatfor",
+            "config": {
+                "impl_setting": {
+                    "type": "number",
+                    "description": "who cares"
+                }
+            }
+        }
+    },
+    "requires": {
+        "req1": {
+            "interface": "sample_interface",
+            "min_connections": 0,
+            "max_connections": 2
+        },
+        "req2": {
+            "interface": "other_interface"
+        }
+    }
+}

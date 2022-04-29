@@ -1,83 +1,28 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2020 - 2022 Pionix GmbH and Contributors to EVerest
+#include "testing_helpers.hpp"
 #include <catch2/catch.hpp>
 
-#include <everest/everest.hpp>
+#include <everest/utils/config.hpp>
+
+class ConfigLoaderMock : public everest::ModuleManifestLoaderBase {
+private:
+    std::string get_raw_manifest(const std::string& module_type) const override final {
+        return read_resource_file("config/" + module_type + ".json");
+    }
+};
 
 SCENARIO("Check config parser", "[!throws]") {
-    GIVEN("An empty config") {
-        everest::Config config =
-            everest::Config("../../schemas", "valid/config.json", "test_modules", "test_interfaces");
-        THEN("It should not contain some module") {
-            CHECK(!config.contains("some_module"));
-        }
-    }
+    GIVEN("A mocked config loader") {
+        ConfigLoaderMock cfg_loader;
+        WHEN("Given a valid module manifests") {
+            nlohmann::json config = read_json_file("schema/valid_config_0.json");
 
-    // FIXME (aw): all the exception checks can't distinguish, what the
-    //             real reason was, this needs to be improved (probably
-    //             by proper ExceptionTypes)
-    GIVEN("An invalid main dir") {
-        THEN("It should throw Everest::EverestConfigError") {
-            CHECK_THROWS_AS(everest::Config("../../schemas", "wrong_maindir", "test_modules", "test_interfaces"),
-                            everest::EverestConfigError);
-        }
-    }
-
-    GIVEN("A non existing config file") {
-        THEN("It should throw Everest::EverestConfigError") {
-            CHECK_THROWS_AS(everest::Config("../../schemas", "missing_config", "test_modules", "test_interfaces"),
-                            everest::EverestConfigError);
-        }
-    }
-
-    GIVEN("A broken config file") {
-        THEN("It should throw Everest::EverestConfigError") {
-            CHECK_THROWS_AS(
-                everest::Config("../../schemas", "broken_config/config.json", "test_modules", "test_interfaces"),
-                everest::EverestConfigError);
-        }
-    }
-
-    GIVEN("A config file referencing a non existend module") {
-        THEN("It should throw Everest::EverestConfigError") {
-            CHECK_THROWS_AS(everest::Config("../../schemas", "missing_module_config/config.json", "test_modules",
-                                            "test_interfaces"),
-                            everest::EverestConfigError);
-        }
-    }
-
-    GIVEN("A config file referencing a non existend module") {
-        THEN("It should throw Everest::EverestConfigError") {
-            CHECK_THROWS_AS(everest::Config("../../schemas", "missing_module_config/config.json", "test_modules",
-                                            "test_interfaces"),
-                            everest::EverestConfigError);
-        }
-    }
-
-    GIVEN("A config file using a module with broken manifest") {
-        THEN("It should throw Everest::EverestConfigError") {
-            CHECK_THROWS_AS(everest::Config("../../schemas", "broken_manifest/config.json", "broken_manifest/modules",
-                                            "test_interfaces"),
-                            everest::EverestConfigError);
-            CHECK_THROWS_AS(everest::Config("../../schemas", "broken_manifest2/config.json", "broken_manifest2/modules",
-                                            "test_interfaces"),
-                            everest::EverestConfigError);
-        }
-    }
-
-    GIVEN("A config file using a module with a valid manifest referencing an invalid interface") {
-        THEN("It should throw Everest::EverestConfigError") {
-            CHECK_THROWS_AS(everest::Config("../../schemas", "valid_manifest_missing_interface/config.json",
-                                            "valid_manifest_missing_interface/modules", "test_interfaces"),
-                            everest::EverestConfigError);
-        }
-    }
-
-    GIVEN("A valid config") {
-        THEN("It should not throw at all") {
-            CHECK_NOTHROW(everest::Config("../../schemas", "valid_manifest_valid_interface/config.json",
-                                          "valid_manifest_valid_interface/modules",
-                                          "valid_manifest_valid_interface/interfaces"));
+            everest::Config(cfg_loader, config);
+            THEN("The config should load successfully") {
+                // manifest = read_json_file("schema/invalid_manifest_0.json");
+                // REQUIRE_THROWS(everest::Config(cfg_loader, config));
+            }
         }
     }
 }

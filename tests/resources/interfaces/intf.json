@@ -1,0 +1,27 @@
+{
+    "description": "fool",
+    "cmds": {
+        "foo1": {
+            "description": "foo1 command",
+            "arguments": {
+                "arg1": {
+                    "description": "arg1 argument",
+                    "type": [
+                        "integer",
+                        "boolean"
+                    ]
+                }
+            },
+            "result": {
+                "description": "result type",
+                "type": "string"
+            }
+        }
+    },
+    "vars": {
+        "var1": {
+            "description": "pub var",
+            "type": "string"
+        }
+    }
+}

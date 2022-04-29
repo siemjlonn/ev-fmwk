@@ -31,9 +31,9 @@ find_program(
 
 # Include Node-API wrappers
 # FIXME (aw): we want this as an requirement, not implicitely install it by ourself
-execute_process(COMMAND ${NPM} install node-addon-api
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-)
+# execute_process(COMMAND ${NPM} install node-addon-api
+#         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+# )
 
 
 execute_process(COMMAND ${NODE} -p "require('node-addon-api').include"

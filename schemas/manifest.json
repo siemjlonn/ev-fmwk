@@ -36,7 +36,6 @@
     "type": "object",
     "required": [
         "description",
-        "provides",
         "metadata"
     ],
     "properties": {
@@ -49,8 +48,7 @@
             "type": "array",
             "minItems": 0,
             "items": {
-                "type": "string",
-                "minLength": 6
+                "type": "string"
             },
             "default": []
         },
@@ -58,10 +56,9 @@
             "description": "Config set for this module (and possibly default values) declared as json schema",
             "$ref": "#/$defs/config_set_schema"
         },
-        "provides": {
+        "implements": {
             "description": "this configures a list of implementations this module provides along with their api, provided vars and config",
             "type": "object",
-            "minProperties": 1, //at least one implementation is required
             "patternProperties": {
                 "^[a-zA-Z_][a-zA-Z0-9_.-]*$": { // arbitrary implementation id
                     "description": "This defines api, provided vars and config of this implementation",

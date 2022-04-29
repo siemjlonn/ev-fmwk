@@ -64,6 +64,8 @@ find_package(EDM REQUIRED)
 
 find_package(Boost COMPONENTS filesystem program_options system thread REQUIRED)
 
+set(GENERATED_OUTPUT_DIR ${CMAKE_BINARY_DIR}/generated)
+
 # testing
 include(CTest)
 if(BUILD_TESTING)
@@ -74,20 +76,6 @@ if(BUILD_TESTING)
     append_coverage_compiler_flags()
 
     add_subdirectory(tests)
-
-    setup_target_for_coverage_gcovr_html(
-        NAME gcovr_coverage
-        EXECUTABLE ctest --output-on-failure
-        EXCLUDE "${CMAKE_SOURCE_DIR}/tests" "${CMAKE_BINARY_DIR}"
-        DEPENDENCIES tests everest
-    )
-
-    setup_target_for_coverage_lcov(
-        NAME lcov_coverage
-        EXECUTABLE ctest --output-on-failure
-        EXCLUDE "${CMAKE_SOURCE_DIR}/tests" "${CMAKE_BINARY_DIR}"
-        DEPENDENCIES tests everest
-    )
 else()
     message("Not running unit tests")
 endif()
@@ -95,14 +83,17 @@ endif()
 # API header
 add_subdirectory(include)
 
+# schema files
+add_subdirectory(schemas)
+
+# 3rd party
+add_subdirectory(3rd_party)
+
 # library code
 add_subdirectory(lib)
 
 # executable code
 add_subdirectory(src)
 
-# auxillary files
-add_subdirectory(schemas)
-
 # everest javascript wrapper
-add_subdirectory(everestjs)
+# add_subdirectory(everestjs)
