@@ -11,11 +11,6 @@
 
 namespace everest {
 
-struct Fulfillment {
-    std::string module_id;
-    std::string implementation_id;
-};
-
 class Module {
 public:
     using InterfaceMap = std::unordered_map<std::string, schema::Interface>;

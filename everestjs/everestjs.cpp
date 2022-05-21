@@ -1,573 +1,300 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2020 - 2022 Pionix GmbH and Contributors to EVerest
-#include <sys/prctl.h>
-
-#include <chrono>
-#include <future>
-#include <iostream>
-#include <map>
-#include <thread>
-#include <vector>
+#include <forward_list>
+#include <memory>
+#include <mutex>
+#include <queue>
+#include <unordered_map>
 
 #include <napi.h>
 
-#include <everest/everest.hpp>
+#include <boost/filesystem.hpp>
+
 #include <everest/logging/exceptions.hpp>
 #include <everest/logging/logging.hpp>
+#include <everest/module_peer.hpp>
+#include <everest/utils/helpers.hpp>
 
-#include "conversions.hpp"
-#include "js_exec_ctx.hpp"
+#include "conversion.hpp"
+#include "logger.hpp"
+#include "thread_safe_callbacks.hpp"
 #include "utils.hpp"
 
-namespace everest {
+static std::string read_file(const std::string& dir, const std::string& name) {
+    namespace fs = boost::filesystem;
+    std::string data;
 
-struct EvModCtx {
-    EvModCtx(Everest& ev, const json& module_manifest, const Napi::Env& env) :
-        ev(ev),
-        module_manifest(module_manifest),
-        framework_ready_deferred(Napi::Promise::Deferred::New(env)),
-        framework_ready_flag{false} {
-        framework_ready_promise = Napi::Persistent(framework_ready_deferred.Promise());
-    };
-    Everest& ev;
-    const json module_manifest;
+    auto fs_path = boost::filesystem::path(dir) / name;
+    // FIXME (aw): check if exists
 
-    const Napi::Promise::Deferred framework_ready_deferred;
-    Napi::Reference<Napi::Promise> framework_ready_promise;
-    bool framework_ready_flag;
-    Napi::ObjectReference js_module_ref;
+    fs_path = fs::exists(fs_path) ? fs::canonical(fs_path) : fs_path;
 
-    std::unique_ptr<JsExecCtx> js_cb;
+    if (!fs::is_regular_file(fs_path)) {
+        throw std::runtime_error("Could not open " + fs_path.string());
+    }
 
-    std::map<std::pair<Requirement, std::string>, Napi::FunctionReference> var_subscriptions;
-    std::map<std::pair<std::string, std::string>, Napi::FunctionReference> cmd_handlers;
+    boost::filesystem::load_string_file(fs_path, data);
 
-    std::map<std::string, Napi::FunctionReference> mqtt_subscriptions;
+    return data;
+}
+
+class EverestModule : public Napi::ObjectWrap<EverestModule> {
+public:
+    static Napi::Object Init(Napi::Env env, Napi::Object exports);
+    EverestModule(const Napi::CallbackInfo& info);
+
+private:
+    using AsyncMQTTSubscription = AsyncSubscription<std::string>;
+    using AsyncVarSubscription = AsyncSubscription<everest::Value>;
+
+    Napi::Value say_hello(const Napi::CallbackInfo& info);
+    Napi::Value init_done(const Napi::CallbackInfo& info);
+
+    Napi::Value call_command(const Napi::CallbackInfo& info);
+    Napi::Value publish_variable(const Napi::CallbackInfo& info);
+    Napi::Value implement_command(const Napi::CallbackInfo& info);
+    Napi::Value subscribe_variable(const Napi::CallbackInfo& info);
+    Napi::Value mqtt_publish(const Napi::CallbackInfo& info);
+    Napi::Value mqtt_subscribe(const Napi::CallbackInfo& info);
+
+    Napi::Value get_metadata(const Napi::CallbackInfo& info);
+
+    std::unique_ptr<everest::ModulePeer> peer;
+    std::list<AsyncMQTTSubscription> mqtt_subscriptions;
+    std::list<AsyncVarSubscription> var_subscriptions;
+    std::list<AsyncCmdImplementation> cmd_implementations;
 };
 
-// FIXME (aw): this could go into a class with singleton pattern
-EvModCtx* ctx;
-
-static Napi::Value publish_var(const std::string& impl_id, const std::string& var_name,
-                               const Napi::CallbackInfo& info) {
-    BOOST_LOG_FUNCTION();
-    const auto& env = info.Env();
-
-    try {
-        ctx->ev.publish_var(impl_id, var_name, convertToJson(info[0]));
-    } catch (std::exception& e) {
-        EVLOG_AND_RETHROW(env);
-    }
-
-    return info.Env().Undefined();
-}
-
-static Napi::Value setup_cmd_handler(const std::string& impl_id, const std::string& cmd_name,
-                                     const Napi::CallbackInfo& info) {
-    BOOST_LOG_FUNCTION();
-
-    const auto& env = info.Env();
-
-    try {
-        const auto& handler = info[0].As<Napi::Function>();
-
-        auto cmd_key = std::make_pair(impl_id, cmd_name);
-        auto& cmd_handlers = ctx->cmd_handlers;
-
-        if (cmd_handlers.find(cmd_key) != cmd_handlers.end()) {
-            EVTHROW(EVEXCEPTION(EverestApiError, "Attaching more than one handler to ", impl_id, "->", cmd_name,
-                                " is not yet supported!"));
-        }
-
-        cmd_handlers.insert({cmd_key, Napi::Persistent(handler)});
-        // FIXME (aw): in principle we could also pass this reference down to js_cb
-
-        ctx->ev.provide_cmd(impl_id, cmd_name, [cmd_key](json input) -> json {
-            json result;
-
-            ctx->js_cb->exec(
-                [&input, &cmd_key](Napi::Env& env) {
-                    const auto& arg = convertToNapiValue(env, input);
-                    std::vector<napi_value> args{ctx->cmd_handlers[cmd_key].Value(), ctx->js_module_ref.Value(), arg};
-                    return args;
-                },
-                [&result, &cmd_key](const Napi::CallbackInfo& info, bool err) {
-                    if (err) {
-                        const std::string error_msg =
-                            "Call into " + cmd_key.first + "->" + cmd_key.second + " got rejected";
-                        throw Napi::Error::New(info.Env(), error_msg);
-                    }
-
-                    result = convertToJson(info[0]);
-                });
-
-            return result;
+Napi::Object EverestModule::Init(Napi::Env env, Napi::Object exports) {
+    Napi::Function func = DefineClass(
+        env, "EverestModule",
+        {
+            InstanceMethod<&EverestModule::say_hello>(
+                "say_hello", static_cast<napi_property_attributes>(napi_writable | napi_configurable)),
+            InstanceMethod<&EverestModule::init_done>(
+                "init_done", static_cast<napi_property_attributes>(napi_writable | napi_configurable)),
+            InstanceMethod<&EverestModule::call_command>(
+                "call_command", static_cast<napi_property_attributes>(napi_writable | napi_configurable)),
+            InstanceMethod<&EverestModule::publish_variable>(
+                "publish_variable", static_cast<napi_property_attributes>(napi_writable | napi_configurable)),
+            InstanceMethod<&EverestModule::implement_command>(
+                "implement_command", static_cast<napi_property_attributes>(napi_writable | napi_configurable)),
+            InstanceMethod<&EverestModule::subscribe_variable>(
+                "subscribe_variable", static_cast<napi_property_attributes>(napi_writable | napi_configurable)),
+            InstanceMethod<&EverestModule::mqtt_publish>(
+                "mqtt_publish", static_cast<napi_property_attributes>(napi_writable | napi_configurable)),
+            InstanceMethod<&EverestModule::mqtt_subscribe>(
+                "mqtt_subscribe", static_cast<napi_property_attributes>(napi_writable | napi_configurable)),
+            InstanceAccessor<&EverestModule::get_metadata>("metadata"),
         });
-    } catch (std::exception& e) {
-        EVLOG_AND_RETHROW(env);
-    }
 
-    return env.Undefined();
-}
+    Napi::FunctionReference* constructor = new Napi::FunctionReference();
 
-static Napi::Value set_var_subscription_handler(const Requirement& req, const std::string& var_name,
-                                                const Napi::CallbackInfo& info) {
-    BOOST_LOG_FUNCTION();
-    const auto& env = info.Env();
+    *constructor = Napi::Persistent(func);
+    exports.Set("EverestModule", func);
 
-    try {
-        const auto& handler = info[0].As<Napi::Function>();
-
-        auto sub_key = std::make_pair(req, var_name);
-        auto& var_subs = ctx->var_subscriptions;
-
-        if (var_subs.find(sub_key) != var_subs.end()) {
-            // FIXME (aw): error handling, if var is already subscribed
-            EVTHROW(EVEXCEPTION(EverestApiError, "Subscribing to ", req.id, "->", var_name,
-                                " more than once is not yet supported!"));
-        }
-        var_subs.insert({sub_key, Napi::Persistent(handler)});
-
-        // FIXME (aw): in principle we could also pass this reference down to js_cb
-        ctx->ev.subscribe_var(req, var_name, [sub_key](json input) {
-            ctx->js_cb->exec(
-                [&input, &sub_key](Napi::Env& env) {
-                    const auto& arg = convertToNapiValue(env, input);
-                    std::vector<napi_value> args{ctx->var_subscriptions[sub_key].Value(), ctx->js_module_ref.Value(),
-                                                 arg};
-                    return args;
-                },
-                nullptr);
-        });
-    } catch (std::exception& e) {
-        EVLOG_AND_RETHROW(env);
-    }
-
-    return env.Undefined();
-}
-
-static Napi::Value signal_ready(const Napi::CallbackInfo& info) {
-    BOOST_LOG_FUNCTION();
-
-    const auto& env = info.Env();
-    Napi::Value retval;
-
-    try {
-        ctx->ev.signal_ready();
-        retval = ctx->framework_ready_promise.Value();
-    } catch (std::exception& e) {
-        EVLOG_AND_RETHROW(env);
-    }
-
-    return retval;
-}
-
-void framework_ready_handler() {
-    BOOST_LOG_FUNCTION();
-    // resolving the promise must be done inside the main js context!
-    auto handle_ready_js = [](const Napi::CallbackInfo& info) -> Napi::Value {
-        ctx->framework_ready_flag = true;
-        ctx->framework_ready_deferred.Resolve(ctx->js_module_ref.Value());
-        return info.Env().Undefined();
-    };
-
-    ctx->js_cb->exec(
-        [handle_ready_js](Napi::Env& env) {
-            std::vector<napi_value> args{Napi::Function::New(env, handle_ready_js)};
-            return args;
-        },
-        nullptr);
-}
-
-static Napi::Value mqtt_publish(const Napi::CallbackInfo& info) {
-    BOOST_LOG_FUNCTION();
-
-    const auto& env = info.Env();
-    try {
-        const auto& topic_alias = info[0].ToString().Utf8Value();
-        const auto& data = info[1].ToString().Utf8Value();
-
-        ctx->ev.external_mqtt_publish(topic_alias, data);
-    } catch (std::exception& e) {
-        EVLOG_AND_RETHROW(env);
-    }
-
-    return env.Undefined();
-}
-
-static Napi::Value mqtt_subscribe(const Napi::CallbackInfo& info) {
-    BOOST_LOG_FUNCTION();
-
-    const auto& env = info.Env();
-
-    try {
-        const auto& topic_alias = info[0].ToString().Utf8Value();
-        const auto& handler = info[1].As<Napi::Function>();
-
-        auto& mqtt_subs = ctx->mqtt_subscriptions;
-
-        if (mqtt_subs.find(topic_alias) != mqtt_subs.end()) {
-            EVTHROW(EVEXCEPTION(EverestApiError, "Subscribing to external mqtt topic alias '", topic_alias,
-                                "' more than once is not yet supported!"));
-        }
-
-        ctx->mqtt_subscriptions.insert({topic_alias, Napi::Persistent(handler)});
-
-        ctx->ev.provide_external_mqtt_handler(topic_alias, [topic_alias](std::string data) {
-            ctx->js_cb->exec(
-                [&topic_alias, &data](Napi::Env& env) {
-                    // in case we're not ready, the mod argument of the subscribe handler will be undefined, so no
-                    // module related functions can be used
-                    Napi::Value module_ref = (ctx->framework_ready_flag) ? ctx->js_module_ref.Value() : env.Undefined();
-                    std::vector<napi_value> args = {ctx->mqtt_subscriptions[topic_alias].Value(), module_ref,
-                                                    Napi::String::New(env, data)};
-                    return args;
-                },
-                nullptr);
-        });
-    } catch (std::exception& e) {
-        EVLOG_AND_RETHROW(env);
-    }
-
-    return env.Undefined();
-}
-
-static Napi::Value call_cmd(const Requirement& req, const std::string& cmd_name, const Napi::CallbackInfo& info) {
-    BOOST_LOG_FUNCTION();
-
-    const auto& env = info.Env();
-    Napi::Value cmd_result;
-
-    try {
-        const auto& argument = convertToJson(info[0]);
-        const auto& retval = ctx->ev.call_cmd(req, cmd_name, argument);
-
-        cmd_result = convertToNapiValue(info.Env(), retval["retval"]);
-    } catch (std::exception& e) {
-        EVLOG_AND_RETHROW(env);
-    }
-
-    return cmd_result;
-}
-
-static Napi::Value boot_module(const Napi::CallbackInfo& info) {
-    BOOST_LOG_FUNCTION();
-
-    auto env = info.Env();
-
-    auto available_handlers_prop = Napi::Object::New(env);
-
-    try {
-
-        auto module_this = info.This().ToObject();
-        const Napi::Object& settings = info[0].ToObject();
-        const Napi::Function& callback_wrapper = info[1].As<Napi::Function>();
-
-        const auto& module_id = settings.Get("module").ToString().Utf8Value();
-        const auto& main_dir = settings.Get("main_dir").ToString().Utf8Value();
-        const auto& schemas_dir = settings.Get("schemas_dir").ToString().Utf8Value();
-        const auto& modules_dir = settings.Get("modules_dir").ToString().Utf8Value();
-        const auto& interfaces_dir = settings.Get("interfaces_dir").ToString().Utf8Value();
-        const auto& config_file = settings.Get("config_file").ToString().Utf8Value();
-        const auto& log_config_file = settings.Get("log_config_file").ToString().Utf8Value();
-        const bool validate_schema = settings.Get("validate_schema").ToBoolean().Value();
-
-        const auto& mqtt_server_address = settings.Get("mqtt_server_address").ToString().Utf8Value();
-        const auto& mqtt_server_port = settings.Get("mqtt_server_port").ToString().Utf8Value();
-
-        // initialize logging as early as possible
-        logging::init(log_config_file, module_id);
-
-        auto config = std::make_unique<Config>(schemas_dir, config_file, modules_dir, interfaces_dir);
-        if (!config->contains(module_id)) {
-            EVTHROW(
-                EVEXCEPTION(EverestConfigError, "Module with identifier '" << module_id << "' not found in config!"));
-        }
-
-        const std::string& module_name = config->get_main_config()[module_id]["module"].get<std::string>();
-        auto module_manifest = config->get_manifests()[module_name];
-        // FIXME (aw): get_classes should be called get_units and should contain the type of class for each unit
-        auto module_impls = config->get_interfaces()[module_name];
-
-        // initialize everest framework
-        const auto& module_identifier = config->printable_identifier(module_id);
-        EVLOG(info) << "Initializing framework for module " << module_identifier << "...";
-        EVLOG(debug) << "Trying to set process name to: '" << module_identifier << "'...";
-        if (prctl(PR_SET_NAME, module_identifier.c_str())) {
-            EVLOG(warning) << "Could not set process name to '" << module_identifier << "'";
-        }
-
-        logging::update_process_name(module_identifier);
-
-        // connect to mqtt server and start mqtt mainloop thread
-        ctx = new EvModCtx(
-            Everest::get_instance(module_id, *config, validate_schema, mqtt_server_address, mqtt_server_port),
-            module_manifest, env);
-        ctx->ev.connect();
-
-        ctx->js_module_ref = Napi::Persistent(module_this);
-
-        ctx->ev.spawn_main_loop_thread();
-
-        ctx->js_cb = std::make_unique<JsExecCtx>(env, callback_wrapper);
-
-        //
-        // fill in everything we know about the module
-        //
-
-        // provides property: iterate over every implementation that this modules provides
-        auto provided_vars_prop = Napi::Object::New(env);
-        auto provided_cmds_prop = Napi::Object::New(env);
-        for (const auto& impl_definition : module_impls.items()) {
-            const auto& impl_id = impl_definition.key();
-            const auto& impl_intf = module_impls[impl_id];
-
-            auto set_prop = Napi::Object::New(env);
-
-            // iterator over every variable, that the interface of this implementation provides
-            auto impl_vars_prop = Napi::Object::New(env);
-            if (impl_intf.contains("vars")) {
-                for (const auto& var_entry : impl_intf["vars"].items()) {
-                    const auto& var_name = var_entry.key();
-
-                    impl_vars_prop.DefineProperty(Napi::PropertyDescriptor::Value(
-                        var_name,
-                        Napi::Function::New(env,
-                                            [impl_id, var_name](const Napi::CallbackInfo& info) {
-                                                return publish_var(impl_id, var_name, info);
-                                            }),
-                        napi_enumerable));
-                }
-            }
-
-            if (impl_vars_prop.GetPropertyNames().Length()) {
-                auto var_publish_prop = Napi::Object::New(env);
-                var_publish_prop.DefineProperty(
-                    Napi::PropertyDescriptor::Value("publish", impl_vars_prop, napi_enumerable));
-                provided_vars_prop.DefineProperty(
-                    Napi::PropertyDescriptor::Value(impl_id, var_publish_prop, napi_enumerable));
-            }
-
-            auto cmd_register_prop = Napi::Object::New(env);
-            // iterate over every command, that the interface offers
-            if (impl_intf.contains("cmds")) {
-                for (const auto& cmd_entry : impl_intf["cmds"].items()) {
-                    const auto& cmd_name = cmd_entry.key();
-                    cmd_register_prop.DefineProperty(Napi::PropertyDescriptor::Value(
-                        cmd_name,
-                        Napi::Function::New(env,
-                                            [impl_id, cmd_name](const Napi::CallbackInfo& info) {
-                                                return setup_cmd_handler(impl_id, cmd_name, info);
-                                            }),
-                        napi_enumerable));
-                }
-            }
-
-            if (cmd_register_prop.GetPropertyNames().Length()) {
-                auto impl_cmds_prop = Napi::Object::New(env);
-                impl_cmds_prop.DefineProperty(
-                    Napi::PropertyDescriptor::Value("register", cmd_register_prop, napi_enumerable));
-                provided_cmds_prop.DefineProperty(
-                    Napi::PropertyDescriptor::Value(impl_id, impl_cmds_prop, napi_enumerable));
-            }
-        }
-        module_this.DefineProperty(Napi::PropertyDescriptor::Value("provides", provided_vars_prop, napi_enumerable));
-        available_handlers_prop.DefineProperty(
-            Napi::PropertyDescriptor::Value("provides", provided_cmds_prop, napi_enumerable));
-
-        // uses[_optional] property
-        auto uses_vars_prop = Napi::Object::New(env);
-        auto uses_list_vars_prop = Napi::Object::New(env);
-        auto uses_cmds_prop = Napi::Object::New(env);
-        auto uses_list_cmds_prop = Napi::Object::New(env);
-        for (auto& requirement : module_manifest["requires"].items()) {
-            auto const& requirement_id = requirement.key();
-            json req_route_list = config->resolve_requirement(module_id, requirement_id);
-            // if this was a requirement with min_connections == 1 and max_connections == 1,
-            // this will be simply a single connection, but an array of connections otherwise
-            // (this array can have only one entry, if only one connection was provided, though)
-            const bool is_list = req_route_list.is_array();
-            if (!is_list) {
-                req_route_list = json::array({req_route_list});
-            }
-            auto req_mod_vars_array = Napi::Array::New(env);
-            auto req_mod_cmds_array = Napi::Array::New(env);
-            for (size_t i = 0; i < req_route_list.size(); i++) {
-                auto req_route = req_route_list[i];
-                const std::string& requirement_module_id = req_route["module_id"];
-                const std::string& requirement_impl_id = req_route["implementation_id"];
-                // FIXME (aw): why is const auto& not possible for the following line?
-                // we only want cmds/vars from the required interface to be usable, not from it's child interfaces
-                std::string interface_name = req_route["required_interface"].get<std::string>();
-                auto requirement_impl_intf = config->get_interface_definition(interface_name);
-                auto requirement_vars = Config::keys(requirement_impl_intf["vars"]);
-                auto requirement_cmds = Config::keys(requirement_impl_intf["cmds"]);
-
-                auto var_subscribe_prop = Napi::Object::New(env);
-                for (auto const& var_name : requirement_vars) {
-                    var_subscribe_prop.DefineProperty(Napi::PropertyDescriptor::Value(
-                        var_name,
-                        Napi::Function::New(
-                            env,
-                            [requirement_id, i, var_name](const Napi::CallbackInfo& info) {
-                                return set_var_subscription_handler({requirement_id, i}, var_name, info);
-                            }),
-                        napi_enumerable));
-                }
-
-                auto req_mod_vars_prop = Napi::Object::New(env);
-                req_mod_vars_prop.DefineProperty(
-                    Napi::PropertyDescriptor::Value("subscribe", var_subscribe_prop, napi_enumerable));
-
-                if (requirement_vars.size()) {
-                    if (is_list) {
-                        req_mod_vars_array.Set(i, req_mod_vars_prop);
-                    } else {
-                        uses_vars_prop.DefineProperty(
-                            Napi::PropertyDescriptor::Value(requirement_id, req_mod_vars_prop, napi_enumerable));
-                    }
-                }
-
-                auto cmd_prop = Napi::Object::New(env);
-                for (auto const& cmd_name : requirement_cmds) {
-                    cmd_prop.DefineProperty(Napi::PropertyDescriptor::Value(
-                        cmd_name,
-                        Napi::Function::New(env,
-                                            [requirement_id, i, cmd_name](const Napi::CallbackInfo& info) {
-                                                return call_cmd({requirement_id, i}, cmd_name, info);
-                                            }),
-                        napi_enumerable));
-                }
-
-                auto req_mod_cmds_prop = Napi::Object::New(env);
-                req_mod_cmds_prop.DefineProperty(Napi::PropertyDescriptor::Value("call", cmd_prop, napi_enumerable));
-
-                if (requirement_cmds.size()) {
-                    if (is_list) {
-                        req_mod_cmds_array.Set(i, req_mod_cmds_prop);
-                    } else {
-                        uses_cmds_prop.DefineProperty(
-                            Napi::PropertyDescriptor::Value(requirement_id, req_mod_cmds_prop, napi_enumerable));
-                    }
-                }
-            }
-
-            uses_list_vars_prop.DefineProperty(
-                Napi::PropertyDescriptor::Value(requirement_id, req_mod_vars_array, napi_enumerable));
-            uses_list_cmds_prop.DefineProperty(
-                Napi::PropertyDescriptor::Value(requirement_id, req_mod_cmds_array, napi_enumerable));
-        }
-
-        if (uses_vars_prop.GetPropertyNames().Length())
-            available_handlers_prop.DefineProperty(
-                Napi::PropertyDescriptor::Value("uses", uses_vars_prop, napi_enumerable));
-        if (uses_list_vars_prop.GetPropertyNames().Length())
-            available_handlers_prop.DefineProperty(
-                Napi::PropertyDescriptor::Value("uses_list", uses_list_vars_prop, napi_enumerable));
-
-        if (uses_cmds_prop.GetPropertyNames().Length())
-            module_this.DefineProperty(Napi::PropertyDescriptor::Value("uses", uses_cmds_prop, napi_enumerable));
-        if (uses_list_cmds_prop.GetPropertyNames().Length())
-            module_this.DefineProperty(
-                Napi::PropertyDescriptor::Value("uses_list", uses_list_cmds_prop, napi_enumerable));
-
-        // external mqtt property
-        if (module_manifest.contains("enable_external_mqtt") && module_manifest["enable_external_mqtt"] == true) {
-            auto mqtt_prop = Napi::Object::New(env);
-            mqtt_prop.DefineProperty(
-                Napi::PropertyDescriptor::Value("publish", Napi::Function::New(env, mqtt_publish), napi_enumerable));
-
-            mqtt_prop.DefineProperty(Napi::PropertyDescriptor::Value(
-                "subscribe", Napi::Function::New(env, mqtt_subscribe), napi_enumerable));
-
-            module_this.DefineProperty(Napi::PropertyDescriptor::Value("mqtt", mqtt_prop, napi_enumerable));
-        }
-
-        // config property
-        json module_config = config->get_module_json_config(module_id);
-        auto module_config_prop = Napi::Object::New(env);
-        auto module_config_impl_prop = Napi::Object::New(env);
-
-        for (auto& config_map : module_config.items()) {
-            if (config_map.key() == "!module") {
-                module_config_prop.DefineProperty(Napi::PropertyDescriptor::Value(
-                    "module", convertToNapiValue(env, config_map.value()), napi_enumerable));
-                continue;
-            }
-            module_config_impl_prop.DefineProperty(Napi::PropertyDescriptor::Value(
-                config_map.key(), convertToNapiValue(env, config_map.value()), napi_enumerable));
-        }
-        module_config_prop.DefineProperty(
-            Napi::PropertyDescriptor::Value("impl", module_config_impl_prop, napi_enumerable));
-
-        module_this.DefineProperty(Napi::PropertyDescriptor::Value("config", module_config_prop, napi_enumerable));
-
-        auto module_info_prop = Napi::Object::New(env);
-        // set moduleName property
-        module_info_prop.DefineProperty(
-            Napi::PropertyDescriptor::Value("name", Napi::String::New(env, module_name), napi_enumerable));
-
-        // set moduleId property
-        module_info_prop.DefineProperty(
-            Napi::PropertyDescriptor::Value("id", Napi::String::New(env, module_id), napi_enumerable));
-
-        // set printable identifier
-        module_info_prop.DefineProperty(Napi::PropertyDescriptor::Value(
-            "printable_identifier", Napi::String::New(env, module_identifier), napi_enumerable));
-
-        module_this.DefineProperty(Napi::PropertyDescriptor::Value("info", module_info_prop, napi_enumerable));
-
-        ctx->ev.register_on_ready_handler(framework_ready_handler);
-    } catch (std::exception& e) {
-        EVLOG_AND_RETHROW(env);
-    }
-
-    return available_handlers_prop;
-}
-
-const std::string extract_logstring(const Napi::CallbackInfo& info) {
-    // TODO (aw): check input
-    return info[0].ToString().Utf8Value();
-}
-
-static Napi::Object Init(Napi::Env env, Napi::Object exports) {
-    BOOST_LOG_FUNCTION();
-
-    //
-    // setup logging functions
-    //
-    Napi::Object log = Napi::Object::New(env);
-    log.DefineProperty(Napi::PropertyDescriptor::Value(
-        "debug",
-        Napi::Function::New(env, [](const Napi::CallbackInfo& info) { EVLOG(debug) << extract_logstring(info); }),
-        napi_enumerable));
-    log.DefineProperty(Napi::PropertyDescriptor::Value(
-        "info",
-        Napi::Function::New(env, [](const Napi::CallbackInfo& info) { EVLOG(info) << extract_logstring(info); }),
-        napi_enumerable));
-    log.DefineProperty(Napi::PropertyDescriptor::Value(
-        "warning",
-        Napi::Function::New(env, [](const Napi::CallbackInfo& info) { EVLOG(warning) << extract_logstring(info); }),
-        napi_enumerable));
-    log.DefineProperty(Napi::PropertyDescriptor::Value(
-        "error",
-        Napi::Function::New(env, [](const Napi::CallbackInfo& info) { EVLOG(error) << extract_logstring(info); }),
-        napi_enumerable));
-    log.DefineProperty(Napi::PropertyDescriptor::Value(
-        "critical",
-        Napi::Function::New(env, [](const Napi::CallbackInfo& info) { EVLOG(critical) << extract_logstring(info); }),
-        napi_enumerable));
-    exports.DefineProperty(Napi::PropertyDescriptor::Value("log", log, napi_enumerable));
-
-    exports.DefineProperty(
-        Napi::PropertyDescriptor::Value("signal_ready", Napi::Function::New(env, signal_ready), napi_enumerable));
-
-    exports.DefineProperty(
-        Napi::PropertyDescriptor::Value("boot_module", Napi::Function::New(env, boot_module), napi_enumerable));
+    env.SetInstanceData<Napi::FunctionReference>(constructor);
 
     return exports;
 }
 
-NODE_API_MODULE(everestjs, Init)
+EverestModule::EverestModule(const Napi::CallbackInfo& info) : Napi::ObjectWrap<EverestModule>(info) {
+    Napi::Env env = info.Env();
 
-} // namespace everest
+    const Napi::Object& settings = info[0].ToObject();
+    const auto& module_id = settings.Get("module_id").ToString().Utf8Value();
+    const auto& module_dir = settings.Get("module_dir").ToString().Utf8Value();
+    const auto& interfaces_dir = settings.Get("interfaces_dir").ToString().Utf8Value();
+
+    const auto manifest_text = read_file(module_dir, "manifest.json");
+    const auto manifest = everest::schema::parse_module(manifest_text);
+
+    auto interface_map_builder = everest::InterfaceMapBuilder();
+    for (const auto impl_it : manifest.implementations) {
+        const auto& interface_type = impl_it.second.interface;
+        interface_map_builder.add(interface_type, read_file(interfaces_dir, interface_type + ".json"));
+    }
+
+    for (const auto req_it : manifest.requirements) {
+        const auto& interface_type = req_it.second.interface;
+        interface_map_builder.add(interface_type, read_file(interfaces_dir, interface_type + ".json"));
+    }
+
+    this->peer =
+        std::make_unique<everest::ModulePeer>(everest::Module{module_id, std::move(manifest), interface_map_builder});
+
+    // FIXME (aw): how to wait / die ?
+    auto io_sync_finished = this->peer->spawn_io_sync_thread();
+}
+
+Napi::Value EverestModule::get_metadata(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    auto module_info = Napi::Object::New(env);
+
+    const auto& manifest = this->peer->get_module().manifest;
+
+    module_info.DefineProperty(
+        Napi::PropertyDescriptor::Value("license", Napi::String::New(env, manifest.metadata.license), napi_enumerable));
+
+    auto authors = Napi::Array::New(env, manifest.metadata.authors.size());
+    for (size_t i = 0; i < manifest.metadata.authors.size(); ++i) {
+        authors[i] = Napi::String::New(env, manifest.metadata.authors[i]);
+    }
+
+    module_info.DefineProperty(Napi::PropertyDescriptor::Value("authors", authors, napi_enumerable));
+
+    return module_info;
+}
+
+Napi::Value EverestModule::say_hello(const Napi::CallbackInfo& info) {
+    auto env = info.Env();
+
+    const auto& config = this->peer->say_hello();
+
+    Napi::Object config_object = Napi::Object::New(env);
+
+    // FIXME (aw): all of this could be moved to conversion unit
+    config_object.DefineProperty(Napi::PropertyDescriptor::Value(
+        "config_sets", ev_value_to_napi_value(env, config.get_config_sets()), napi_enumerable));
+
+    Napi::Object cxns_object = Napi::Object::New(env);
+
+    const auto& requiremnts = this->peer->get_module().manifest.requirements;
+    for (const auto& req_it : requiremnts) {
+        const auto& req_id = req_it.first;
+        const auto& fulfillments = config.get_fulfillments(req_id);
+        auto fulfillments_napi = Napi::Array::New(env, fulfillments.size());
+
+        for (size_t i = 0; i < fulfillments.size(); ++i) {
+            auto fulfillment_object = Napi::Object::New(env);
+            fulfillment_object.DefineProperties({
+                Napi::PropertyDescriptor::Value("module_id", Napi::String::New(env, fulfillments[i].module_id),
+                                                napi_enumerable),
+                Napi::PropertyDescriptor::Value(
+                    "implementation_id", Napi::String::New(env, fulfillments[i].implementation_id), napi_enumerable),
+            });
+            fulfillments_napi[i] = fulfillment_object;
+        }
+
+        cxns_object.DefineProperty(Napi::PropertyDescriptor::Value(req_id, fulfillments_napi, napi_enumerable));
+    }
+
+    config_object.DefineProperty(Napi::PropertyDescriptor::Value("connections", cxns_object, napi_enumerable));
+
+    return config_object;
+}
+
+Napi::Value EverestModule::init_done(const Napi::CallbackInfo& info) {
+    this->peer->init_done();
+    return info.Env().Null();
+}
+
+Napi::Value EverestModule::call_command(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    const auto fulfillment = napi_object_to_fulfillment(info[0].As<Napi::Object>());
+    const auto command_name = info[1].As<Napi::String>();
+    const auto args = napi_value_to_ev_value(info[2]);
+
+    const auto result = this->peer->call_command(fulfillment, command_name, args);
+
+    return ev_value_to_napi_value(env, result);
+}
+
+Napi::Value EverestModule::publish_variable(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    const std::string implementation_id = info[0].As<Napi::String>();
+    const std::string variable_name = info[1].As<Napi::String>();
+    const auto value = napi_value_to_ev_value(info[2]);
+
+    this->peer->publish_variable(implementation_id, variable_name, value);
+
+    return env.Null();
+}
+
+Napi::Value EverestModule::implement_command(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    const auto implementation_id = info[0].As<Napi::String>();
+    const auto command_name = info[1].As<Napi::String>();
+    const auto handler = info[2].As<Napi::Function>();
+
+    const auto topic = everest::utils::get_command_topic(this->peer->get_module().id, implementation_id, command_name);
+
+    this->cmd_implementations.emplace_front(topic, env, handler);
+
+    auto& cmd_impl = this->cmd_implementations.front();
+
+    this->peer->implement_command(implementation_id, command_name,
+                                  [&cmd_impl](const everest::Arguments& args) { return cmd_impl.dispatch(args); });
+
+    return env.Null();
+}
+
+Napi::Value EverestModule::subscribe_variable(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    const auto fulfillment = napi_object_to_fulfillment(info[0].As<Napi::Object>());
+    const auto variable_name = info[1].As<Napi::String>();
+    const auto handler = info[2].As<Napi::Function>();
+
+    const auto topic =
+        everest::utils::get_variable_topic(fulfillment.module_id, fulfillment.implementation_id, variable_name);
+
+    this->var_subscriptions.emplace_front(topic, env, handler);
+    auto& var_sub = this->var_subscriptions.front();
+
+    auto unsubscribe = this->peer->subscribe_variable(
+        fulfillment, variable_name, [&var_sub](const everest::Value& data) { var_sub.dispatch(data); });
+
+    return Napi::Function::New(
+        env,
+        [unsubscribe](const Napi::CallbackInfo& info) -> Napi::Value {
+            unsubscribe();
+            // FIXME (aw): How can we discover if we got deleted?
+            return info.Env().Null();
+        },
+        "var_unsubscribe");
+}
+
+Napi::Value EverestModule::mqtt_publish(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    const std::string topic = info[0].As<Napi::String>();
+    const std::string data = info[1].As<Napi::String>();
+
+    this->peer->mqtt_publish(topic, data);
+
+    return env.Null();
+}
+
+Napi::Value EverestModule::mqtt_subscribe(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    const std::string topic = info[0].As<Napi::String>();
+    const auto handler = info[1].As<Napi::Function>();
+
+    this->mqtt_subscriptions.emplace_front(topic, env, handler);
+    auto& mqtt_sub = this->mqtt_subscriptions.front();
+
+    auto unsubscribe =
+        this->peer->mqtt_subscribe(topic, [&mqtt_sub](const std::string& data) { mqtt_sub.dispatch(data); });
+
+    return Napi::Function::New(
+        env,
+        [unsubscribe](const Napi::CallbackInfo& info) -> Napi::Value {
+            unsubscribe();
+            // FIXME (aw): How can we discover if we got deleted?
+            return info.Env().Null();
+        },
+        "mqtt_unsubscribe");
+}
+
+Napi::Object Init(Napi::Env env, Napi::Object exports) {
+    EverestModule::Init(env, exports);
+    init_logger(env, exports);
+    return exports;
+}
+
+NODE_API_MODULE(NODE_GYP_MODULE_NAME, Init)

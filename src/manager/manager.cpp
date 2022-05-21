@@ -72,7 +72,7 @@ Manager::Manager(everest::Config config) : config(std::move(config)) {
     }
 }
 
-void Manager::run(const std::string& module_path, const std::string& log_config_path) {
+void Manager::run(const RuntimeEnvironment& rs) {
     everest::mqtt::MQTTC_IO mqtt_io(everest::mqtt::get_default_server_address());
     everest::Peer mngr("manager", mqtt_io);
 
@@ -89,9 +89,16 @@ void Manager::run(const std::string& module_path, const std::string& log_config_
             const auto& module_id = module_it.first;
             const auto& module_type = this->config.get_modules().at(module_id).type;
 
-            const auto module_binary = fmt::format("{}/{}/{}", module_path, module_type, module_type);
+            const auto module_binary = fmt::format("{}/{}/{}", rs.modules_path.string(), module_type, module_type);
 
-            module_handle.pid = spawn_module(module_id, module_binary, log_config_path);
+            const auto spawn_this_module =
+                (rs.standalone_modules.end() == std::find_if(rs.standalone_modules.begin(), rs.standalone_modules.end(),
+                                                             [&module_id](const auto& id) { return id == module_id; }));
+
+            if (spawn_this_module) {
+                module_handle.pid = spawn_module(module_id, module_binary, rs.logging_config_path.string());
+            }
+
             module_handle.state = ModuleState::NOT_SEEN;
         }
     }

@@ -8,11 +8,11 @@ ExternalMQTT::ExternalMQTT(ModulePeer& module_peer) : module_peer(module_peer) {
 }
 
 UnsubscriptionCallback ExternalMQTT::subscribe(const std::string& topic, const MQTTSubscriptionHandler& handler) {
-    return this->module_peer.mqtt_subscribe_variable(topic, handler);
+    return this->module_peer.mqtt_subscribe(topic, handler);
 }
 
 void ExternalMQTT::publish(const std::string& topic, const std::string& data) {
-    this->module_peer.mqtt_publish_variable(topic, data);
+    this->module_peer.mqtt_publish(topic, data);
 }
 
 } // namespace everest

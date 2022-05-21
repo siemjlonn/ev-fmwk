@@ -51,8 +51,8 @@ public:
     UnsubscriptionCallback subscribe_variable(const Fulfillment& fulfillment, const std::string& variable_name,
                                               const SubscriptionHandler& handler) const;
 
-    UnsubscriptionCallback mqtt_subscribe_variable(const std::string& topic, const MQTTSubscriptionHandler& handler);
-    void mqtt_publish_variable(const std::string& topic, const std::string& data);
+    UnsubscriptionCallback mqtt_subscribe(const std::string& topic, const MQTTSubscriptionHandler& handler);
+    void mqtt_publish(const std::string& topic, const std::string& data);
 
     const ModuleConfig& say_hello();
     void init_done();

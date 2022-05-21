@@ -21,6 +21,11 @@ using SubscriptionHandler = std::function<void(const Value&)>;
 
 using UnsubscriptionCallback = std::function<void(void)>;
 
+struct Fulfillment {
+    std::string module_id;
+    std::string implementation_id;
+};
+
 // type related helper routines
 std::string format_value(Value value);
 std::string format_arguments(Arguments arguments);

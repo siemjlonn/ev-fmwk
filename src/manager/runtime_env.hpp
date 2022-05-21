@@ -19,6 +19,7 @@ struct RuntimeEnvironment {
     std::string config;
     boost::filesystem::path modules_path;
     boost::filesystem::path logging_config_path;
+    std::vector<std::string> standalone_modules;
     bool only_validate{false};
 };
 

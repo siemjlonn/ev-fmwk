@@ -9,6 +9,8 @@
 #include <everest/peer.hpp>
 #include <everest/utils/config.hpp>
 
+#include "runtime_env.hpp"
+
 enum class ModuleState
 {
     NOT_STARTED,
@@ -26,7 +28,7 @@ class Manager {
 public:
     using ModuleHandleMap = std::unordered_map<std::string, ModuleHandle>;
     Manager(everest::Config config);
-    void run(const std::string& module_path, const std::string& log_config_path);
+    void run(const RuntimeEnvironment& rs);
 
     everest::Value handle_say_hello(everest::Peer& mngr, const everest::Arguments& args);
     everest::Value handle_init_done(everest::Peer& mngr, const everest::Arguments& args);

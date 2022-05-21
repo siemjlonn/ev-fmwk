@@ -37,8 +37,8 @@ public:
     void implement_command(const std::string& implementation_id, const std::string& command_name,
                            const CommandHandler& handler);
 
-    UnsubscriptionCallback mqtt_subscribe_variable(const std::string& topic, const MQTTSubscriptionHandler& handler);
-    void mqtt_publish_variable(const std::string& topic, const std::string& data);
+    UnsubscriptionCallback mqtt_subscribe(const std::string& topic, const MQTTSubscriptionHandler& handler);
+    void mqtt_publish(const std::string& topic, const std::string& data);
 
     const std::string peer_id;
 

@@ -49,6 +49,9 @@ RuntimeEnvironment handle_command_line_args(int argc, char* const argv[]) {
     desc.add_options()(
         "logging-config", po::value<std::string>(),
         fmt::format("Set the logging configuration file path (default: {})", DEFAULT_LOGGING_CONFIG_FILE_PATH).c_str());
+    desc.add_options()("standalone-modules,sm", po::value<std::vector<std::string>>()->multitoken(),
+                       "Module id(s) to not automatically start child processes for (those must be started manually to "
+                       "make the framework start!).");
 
     po::positional_options_description p;
 
@@ -57,9 +60,6 @@ RuntimeEnvironment handle_command_line_args(int argc, char* const argv[]) {
     //                    "Dump validated and augmented main config and all used module manifests into dir");
     // desc.add_options()("dumpmanifests", po::value<std::string>(),
     //                    "Dump manifests of all modules into dir (even modules not used in config) and exit");
-    // desc.add_options()("standalone,s", po::value<std::vector<std::string>>()->multitoken(),
-    //                    "Module ID(s) to not automatically start child processes for (those must be started manually
-    //                    to " "make the framework start!).");
     // desc.add_options()("ignore", po::value<std::vector<std::string>>()->multitoken(),
     //                    "Module ID(s) to ignore: Do not automatically start child processes and do not require that "
     //                    "they are started.");
@@ -112,6 +112,10 @@ RuntimeEnvironment handle_command_line_args(int argc, char* const argv[]) {
     if (!fs::is_regular_file(rs.logging_config_path)) {
         throw RuntimeEnvironmentException(
             fmt::format("EVerest logging config file '{}' not found", rs.logging_config_path.string()));
+    }
+
+    if (vm.count("standalone-modules")) {
+        rs.standalone_modules = vm["standalone-modules"].as<std::vector<std::string>>();
     }
 
     return rs;

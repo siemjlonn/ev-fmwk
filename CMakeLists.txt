@@ -96,4 +96,4 @@ add_subdirectory(lib)
 add_subdirectory(src)
 
 # everest javascript wrapper
-# add_subdirectory(everestjs)
+add_subdirectory(everestjs)

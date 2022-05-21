@@ -1,54 +1,31 @@
 #cmake_policy(SET CMP0042 NEW)
+SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+add_library(everestjs SHARED
+    conversion    
+    everestjs
+    logger
+    thread_safe_callbacks
+)
 
-add_library(everestjs SHARED everestjs.cpp conversions.cpp js_exec_ctx.cpp)
-set_target_properties(everestjs PROPERTIES PREFIX "" SUFFIX ".node")
+set (EVERESTJS_NATIVE_ADDON_NAME everestjs.node)
+# this will change the default ending of .so to .node
+set_target_properties(everestjs
+    PROPERTIES
+        PREFIX ""
+        SUFFIX ".node"
+)
 
 target_link_libraries(everestjs
-        PRIVATE everest everest::log
+    PRIVATE
+        everest everest::log
 )
 
-find_program(
-        NODE
-        node
-        REQUIRED
-)
 
-execute_process(COMMAND ${NODE} --version
-        OUTPUT_VARIABLE NODE_VERSION
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-)
+include(NodeApi)
 
 # We need Node-API version 6 or higher
 set(NODE_API_VERSION_REQUIRED 6)
-include(NodeApiVersion)
-require_node_api_version("${NODE_VERSION}" "${NODE_API_VERSION_REQUIRED}")
-
-find_program(
-        NPM
-        npm
-        REQUIRED
-)
-
-# Include Node-API wrappers
-# FIXME (aw): we want this as an requirement, not implicitely install it by ourself
-# execute_process(COMMAND ${NPM} install node-addon-api
-#         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-# )
-
-
-execute_process(COMMAND ${NODE} -p "require('node-addon-api').include"
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        OUTPUT_VARIABLE NODE_ADDON_API_DIR
-)
-string(REGEX REPLACE "[\r\n\"]" "" NODE_ADDON_API_DIR "${NODE_ADDON_API_DIR}")
-
-find_path(NODEJS_INCLUDE_DIR "node_api.h"
-        PATH_SUFFIXES
-        "node"
-        "node16"
-        "nodejs/src"
-        REQUIRED
-)
+require_node_api_version("${NODE_API_VERSION_REQUIRED}")
 
 target_include_directories(everestjs
     PRIVATE
@@ -64,12 +41,47 @@ target_compile_features(everestjs PRIVATE cxx_std_14)
 add_definitions(-DNAPI_VERSION=${NODE_API_VERSION_REQUIRED})
 add_definitions(-DNAPI_CPP_EXCEPTIONS)
 
+set (EVERESTJS_BUILD_PACKAGE_DIR ${CMAKE_CURRENT_BINARY_DIR}/package)
+file(MAKE_DIRECTORY ${EVERESTJS_BUILD_PACKAGE_DIR})
+
+add_custom_command(
+    COMMENT
+        "Packaging everestjs"
+    OUTPUT
+        package/package.json
+        package/index.js
+        package/index.d.ts
+        package/${EVERESTJS_NATIVE_ADDON_NAME}
+    COMMAND
+        ${CMAKE_COMMAND} -E copy
+            ${CMAKE_CURRENT_SOURCE_DIR}/package.json
+            ${CMAKE_CURRENT_SOURCE_DIR}/index.js
+            ${CMAKE_CURRENT_SOURCE_DIR}/index.d.ts
+            ./
+    COMMAND
+        ${CMAKE_COMMAND} -E copy $<TARGET_FILE:everestjs> ${EVERESTJS_NATIVE_ADDON_NAME}
+    WORKING_DIRECTORY
+        ${EVERESTJS_BUILD_PACKAGE_DIR}
+    DEPENDS
+        everestjs
+        index.js
+        index.d.ts
+        package.json
+)
+
+add_custom_target(everestjs_package
+    DEPENDS
+        package/${EVERESTJS_NATIVE_ADDON_NAME}
+)
+
 install(TARGETS everestjs
-        LIBRARY
-        DESTINATION everestjs/node_modules/everestjs)
+    LIBRARY
+    DESTINATION everestjs
+)
 
-install(FILES index.js
-        DESTINATION everestjs/node_modules/everestjs)
-
-install(FILES package.json
-        DESTINATION everestjs/node_modules/everestjs)
+install(
+    FILES
+        index.js
+        package.json
+    DESTINATION everestjs
+)

@@ -55,13 +55,13 @@ UnsubscriptionCallback ModulePeer::subscribe_variable(const Fulfillment& fulfill
     return this->peer->subscribe_variable(fulfillment.module_id, fulfillment.implementation_id, variable_name, handler);
 }
 
-UnsubscriptionCallback ModulePeer::mqtt_subscribe_variable(const std::string& topic,
+UnsubscriptionCallback ModulePeer::mqtt_subscribe(const std::string& topic,
                                                            const MQTTSubscriptionHandler& handler) {
-    return this->peer->mqtt_subscribe_variable(topic, handler);
+    return this->peer->mqtt_subscribe(topic, handler);
 }
 
-void ModulePeer::mqtt_publish_variable(const std::string& topic, const std::string& data) {
-    this->peer->mqtt_publish_variable(topic, data);
+void ModulePeer::mqtt_publish(const std::string& topic, const std::string& data) {
+    this->peer->mqtt_publish(topic, data);
 }
 
 void ModulePeer::bypass(const nlohmann::json& bypass_data) {

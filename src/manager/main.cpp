@@ -42,7 +42,7 @@ void boot(const RuntimeEnvironment& rs) {
         Manager manager{{ModuleManifestLoader(rs.modules_path), rs.config}};
 
         // FIXME (aw): should manager get the full runtime config?
-        manager.run(rs.modules_path.string(), rs.logging_config_path.string());
+        manager.run(rs);
 
     } catch (const everest::ConfigValidationExecption& e) {
         EVLOG(error) << fmt::format("Could not start manager because of invalid config:\n{}\n", e.what());

@@ -183,7 +183,7 @@ void Peer::implement_command(const std::string& implementation_id, const std::st
     auto handler_info = worker.add_handler(command_name, handler_wrapper);
 }
 
-UnsubscriptionCallback Peer::mqtt_subscribe_variable(const std::string& topic, const MQTTSubscriptionHandler& handler) {
+UnsubscriptionCallback Peer::mqtt_subscribe(const std::string& topic, const MQTTSubscriptionHandler& handler) {
     // FIXME (aw): we should specialize for this case, because there is
     // only one key for the worker for string_handlers
     // FIXME (aw): string literal ...
@@ -208,7 +208,7 @@ UnsubscriptionCallback Peer::mqtt_subscribe_variable(const std::string& topic, c
     };
 }
 
-void Peer::mqtt_publish_variable(const std::string& topic, const std::string& data) {
+void Peer::mqtt_publish(const std::string& topic, const std::string& data) {
     this->mqtt_io.publish(topic, data, mqtt::QOS::QOS2);
 }
 
