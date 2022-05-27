@@ -51,36 +51,6 @@ function(require_node_api_version NODE_API_VERSION_REQUIRED)
     # second, figure out the include path
     find_program(NPM npm REQUIRED)
 
-    set (CHECK_FOR_NAPI_DIR ${CMAKE_CURRENT_BINARY_DIR}/napi)
-    file(MAKE_DIRECTORY ${CHECK_FOR_NAPI_DIR})
-
-    execute_process(
-        COMMAND
-            ${NPM} list node-addon-api
-        WORKING_DIRECTORY
-            ${CHECK_FOR_NAPI_DIR}
-        OUTPUT_QUIET
-        RESULT_VARIABLE NODE_ADDON_API_NOT_INSTALLED
-    )
-
-    if (${NODE_ADDON_API_NOT_INSTALLED})
-        execute_process(
-            COMMAND
-                ${NPM} install --save-dev node-addon-api
-            WORKING_DIRECTORY
-                ${CHECK_FOR_NAPI_DIR}
-            OUTPUT_QUIET
-        )
-    endif ()
-
-    execute_process(COMMAND ${NODE} -p "require('node-addon-api').include"
-        WORKING_DIRECTORY ${CHECK_FOR_NAPI_DIR}
-        OUTPUT_VARIABLE NODE_ADDON_API_DIR
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-    string(REGEX REPLACE "\"" "" NODE_ADDON_API_DIR "${NODE_ADDON_API_DIR}")
-
-
     find_path(NODEJS_INCLUDE_DIR "node_api.h"
         PATH_SUFFIXES
             "node"
@@ -89,7 +59,6 @@ function(require_node_api_version NODE_API_VERSION_REQUIRED)
         REQUIRED
     )
 
-    set(NODE_ADDON_API_DIR ${NODE_ADDON_API_DIR} PARENT_SCOPE)
     set(NODEJS_INCLUDE_DIR ${NODEJS_INCLUDE_DIR} PARENT_SCOPE)
 
 endfunction()

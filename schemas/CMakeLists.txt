@@ -15,8 +15,12 @@ foreach (SCHEMA_FILE ${SCHEMA_FILES})
     set (INLINE_SCHEMA_FILE ${GENERATED_INLINE_SCHEMA_OUTPUT_DIR}/${SCHEMA_NAME}.h)
     # FIXME (aw): this is close to ugly
     add_custom_command(
-        OUTPUT ${INLINE_SCHEMA_FILE}
-        DEPENDS ${SCHEMA_FILE}
+        COMMENT
+            "Generating c++ source file for schema ${SCHEMA_FILE}"
+        OUTPUT
+            ${INLINE_SCHEMA_FILE}
+        DEPENDS
+            ${SCHEMA_FILE}
         COMMAND
             bash -c "xxd -i ${SCHEMA_FILE} | sed \"s/unsigned/static const/\" > ${INLINE_SCHEMA_FILE}"
         COMMAND

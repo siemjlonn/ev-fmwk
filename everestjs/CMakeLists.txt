@@ -1,87 +1,75 @@
-#cmake_policy(SET CMP0042 NEW)
-SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-add_library(everestjs SHARED
-    conversion    
-    everestjs
-    logger
-    thread_safe_callbacks
-)
-
-set (EVERESTJS_NATIVE_ADDON_NAME everestjs.node)
-# this will change the default ending of .so to .node
-set_target_properties(everestjs
-    PROPERTIES
-        PREFIX ""
-        SUFFIX ".node"
-)
-
-target_link_libraries(everestjs
-    PRIVATE
-        everest everest::log
-)
-
-
 include(NodeApi)
 
-# We need Node-API version 6 or higher
-set(NODE_API_VERSION_REQUIRED 6)
-require_node_api_version("${NODE_API_VERSION_REQUIRED}")
+set (PACKAGE_JSON ${CMAKE_CURRENT_SOURCE_DIR}/package.json)
+set (NPM_INSTALL_DONE ${CMAKE_CURRENT_BINARY_DIR}/.npm_install_done)
 
-target_include_directories(everestjs
-    PRIVATE
-        ${NODE_ADDON_API_DIR}
-        ${NODEJS_INCLUDE_DIR}
-        "${CMAKE_CURRENT_SOURCE_DIR}/include"
-)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${PACKAGE_JSON})
 
-# needs c++ 14
-target_compile_features(everestjs PRIVATE cxx_std_14)
+if ((NOT EXISTS ${NPM_INSTALL_DONE}) OR (${PACKAGE_JSON} IS_NEWER_THAN ${NPM_INSTALL_DONE}))
+    file (COPY ${PACKAGE_JSON} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+    message (STATUS "Installing package dependencies for everestjs")
+    execute_process(
+        COMMAND
+            npm install
+        WORKING_DIRECTORY
+            ${CMAKE_CURRENT_BINARY_DIR}
+        OUTPUT_QUIET
+        ERROR_VARIABLE
+            NPM_INSTALL_ERROR
+        RESULT_VARIABLE
+            NPM_INSTALL_FAILED
+    )
 
-# define NAPI_VERSION
-add_definitions(-DNAPI_VERSION=${NODE_API_VERSION_REQUIRED})
-add_definitions(-DNAPI_CPP_EXCEPTIONS)
+    if (NPM_INSTALL_FAILED)
+        message (FATAL_ERROR "Installing npm dependencies for everest.js failed")
+    endif ()
 
-set (EVERESTJS_BUILD_PACKAGE_DIR ${CMAKE_CURRENT_BINARY_DIR}/package)
-file(MAKE_DIRECTORY ${EVERESTJS_BUILD_PACKAGE_DIR})
+    execute_process(
+        COMMAND
+            ${CMAKE_COMMAND} -E touch ${NPM_INSTALL_DONE}
+    )
+endif()
+
+add_subdirectory(src/native)
+
+
+# set (EVERESTJS_BUILD_PACKAGE_DIR ${CMAKE_CURRENT_BINARY_DIR}/package)
+# file(MAKE_DIRECTORY ${EVERESTJS_BUILD_PACKAGE_DIR})
 
 add_custom_command(
     COMMENT
         "Packaging everestjs"
     OUTPUT
-        package/package.json
-        package/index.js
-        package/index.d.ts
-        package/${EVERESTJS_NATIVE_ADDON_NAME}
+        .everestjs_packaged
     COMMAND
-        ${CMAKE_COMMAND} -E copy
-            ${CMAKE_CURRENT_SOURCE_DIR}/package.json
-            ${CMAKE_CURRENT_SOURCE_DIR}/index.js
-            ${CMAKE_CURRENT_SOURCE_DIR}/index.d.ts
-            ./
+        npx tsc ${CMAKE_CURRENT_SOURCE_DIR}/src/index.ts -d --outDir lib > .npm_package_log 2>&1 || (cat .npm_package_log; false)
     COMMAND
-        ${CMAKE_COMMAND} -E copy $<TARGET_FILE:everestjs> ${EVERESTJS_NATIVE_ADDON_NAME}
-    WORKING_DIRECTORY
-        ${EVERESTJS_BUILD_PACKAGE_DIR}
+        ${CMAKE_COMMAND} -E copy $<TARGET_FILE:everestjs> lib/$<TARGET_FILE_NAME:everestjs>
+    COMMAND
+        ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/src/everestjs.node.d.ts lib/
+    COMMAND
+        ${CMAKE_COMMAND} -E touch .everestjs_packaged
     DEPENDS
         everestjs
-        index.js
-        index.d.ts
-        package.json
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/everestjs.node.d.ts
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/index.ts
+        ${CMAKE_CURRENT_SOURCE_DIR}/package.json
 )
 
-add_custom_target(everestjs_package
+add_custom_target(everestjs_package ALL
     DEPENDS
-        package/${EVERESTJS_NATIVE_ADDON_NAME}
+        .everestjs_packaged
 )
 
-install(TARGETS everestjs
-    LIBRARY
-    DESTINATION everestjs
-)
+# install(TARGETS everestjs
+#     LIBRARY
+#     DESTINATION everestjs
+# )
 
-install(
-    FILES
-        index.js
-        package.json
-    DESTINATION everestjs
-)
+# FIXME (aw): the install needs to be done to
+# install(
+#     FILES
+#         index.js
+#         package.json
+#     DESTINATION everestjs
+# )

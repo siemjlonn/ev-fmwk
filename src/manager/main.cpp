@@ -20,7 +20,7 @@ public:
 
 private:
     std::string get_raw_manifest(const std::string& module_type) const override final {
-        const auto manifest_path = resolve_path_if_exists(module_path / module_type / "manifest.json");
+        const auto manifest_path = resolve_path_if_exists(module_path / "manifests" / (module_type + ".json"));
         if (!boost::filesystem::is_regular_file(manifest_path)) {
             // FIXME (aw): exception handling
             throw std::runtime_error(

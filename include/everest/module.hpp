@@ -32,7 +32,6 @@ public:
     const schema::ModuleManifest manifest;
     const InterfaceMap interfaces;
 
-private:
     const schema::Interface& get_implementation_interface(const std::string implementation_id) const;
     const schema::Interface& get_requirement_interface(const std::string requirement_id) const;
 };

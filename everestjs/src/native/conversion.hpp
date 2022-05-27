@@ -21,8 +21,8 @@ inline Napi::Value message_to_value(Napi::Env env, const everest::Value& value) 
 
 inline everest::Fulfillment napi_object_to_fulfillment(const Napi::Object& value) {
     return {
-        value.Get("implementation_id").As<Napi::String>(),
         value.Get("module_id").As<Napi::String>(),
+        value.Get("implementation_id").As<Napi::String>(),
     };
 }
 

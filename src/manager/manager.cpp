@@ -2,33 +2,62 @@
 // Copyright 2020 - 2022 Pionix GmbH and Contributors to EVerest
 #include "manager.hpp"
 
-#include <everest/logging/logging.hpp>
-#include <everest/utils/mqtt_io_mqttc.hpp>
+#include <vector>
 
 #include <fmt/color.h>
 #include <fmt/format.h>
+
+#include <boost/filesystem.hpp>
+
+#include <everest/logging/logging.hpp>
+#include <everest/utils/mqtt_io_mqttc.hpp>
 
 #include "subprocess.hpp"
 
 const auto TERMINAL_STYLE_ERROR = fmt::emphasis::bold | fg(fmt::terminal_color::red);
 const auto TERMINAL_STYLE_OK = fmt::emphasis::bold | fg(fmt::terminal_color::green);
 
-static auto spawn_module(std::string module_id, const std::string& module_binary, std::string log_config_path) {
+static auto spawn_module(const boost::filesystem::path& module_path, const std::string& module_id,
+                         const std::string& module_type, const boost::filesystem::path& log_config_path) {
+    namespace fs = boost::filesystem;
+
+    std::string pathname;
+    std::vector<char*> argv;
+    std::string arg_module_id = module_id;
+    std::string arg_config_path = log_config_path.string();
+    std::string arg_script_path;
+    argv.push_back(arg_module_id.data()); // arg0 is the module id
+
+    // detect if binary or script
+    if (fs::exists(module_path / module_type)) {
+        // should be the binary case
+        pathname = (module_path / module_type).string();
+        argv.push_back(arg_module_id.data()); // arg1 is the module id
+        argv.push_back(arg_config_path.data());
+        argv.push_back(nullptr);
+    } else if (fs::exists(module_path / "dist/index.js") || fs::exists(module_path / "index.js")) {
+        pathname = "node";
+        if (fs::exists(module_path / "dist/index.js")) {
+            arg_script_path = (module_path / "dist/index.js").string();
+        } else {
+            arg_script_path = (module_path / "index.js").string();
+        }
+        argv.push_back(arg_script_path.data());
+        argv.push_back(arg_module_id.data());
+        argv.push_back(arg_config_path.data());
+        argv.push_back(nullptr);
+    } else {
+        throw std::runtime_error(fmt::format("Could not find the executable for module id '{}'", module_id));
+    }
+
     auto handle = SubprocessHandle::get_new();
 
     if (handle.is_child()) {
-        char* const argv[] = {
-            {module_id.data()},
-            {module_id.data()},
-            {log_config_path.data()},
-            {NULL},
-        };
-
-        execv(module_binary.c_str(), argv);
+        execvp(pathname.c_str(), argv.data());
 
         // exec failed
-        handle.send_error_and_exit(fmt::format("Syscall to execv() with \"{} {}\" failed ({})", module_binary,
-                                               fmt::join(argv, argv + 1, " "), strerror(errno)));
+        handle.send_error_and_exit(fmt::format("Syscall to execv() with \"{} {}\" failed ({})", pathname,
+                                               fmt::join(argv.begin() + 1, argv.end() - 1, " "), strerror(errno)));
     }
 
     return handle.check_child_executed();
@@ -89,14 +118,13 @@ void Manager::run(const RuntimeEnvironment& rs) {
             const auto& module_id = module_it.first;
             const auto& module_type = this->config.get_modules().at(module_id).type;
 
-            const auto module_binary = fmt::format("{}/{}/{}", rs.modules_path.string(), module_type, module_type);
-
             const auto spawn_this_module =
                 (rs.standalone_modules.end() == std::find_if(rs.standalone_modules.begin(), rs.standalone_modules.end(),
                                                              [&module_id](const auto& id) { return id == module_id; }));
 
             if (spawn_this_module) {
-                module_handle.pid = spawn_module(module_id, module_binary, rs.logging_config_path.string());
+                module_handle.pid =
+                    spawn_module(rs.modules_path / module_type, module_id, module_type, rs.logging_config_path);
             }
 
             module_handle.state = ModuleState::NOT_SEEN;

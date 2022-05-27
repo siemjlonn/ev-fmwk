@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2020 - 2022 Pionix GmbH and Contributors to EVerest
+
 #include <forward_list>
 #include <memory>
 #include <mutex>
@@ -20,12 +21,11 @@
 #include "thread_safe_callbacks.hpp"
 #include "utils.hpp"
 
-static std::string read_file(const std::string& dir, const std::string& name) {
+static std::string read_file(const std::string& path) {
     namespace fs = boost::filesystem;
     std::string data;
 
-    auto fs_path = boost::filesystem::path(dir) / name;
-    // FIXME (aw): check if exists
+    auto fs_path = boost::filesystem::path(path);
 
     fs_path = fs::exists(fs_path) ? fs::canonical(fs_path) : fs_path;
 
@@ -57,7 +57,10 @@ private:
     Napi::Value mqtt_publish(const Napi::CallbackInfo& info);
     Napi::Value mqtt_subscribe(const Napi::CallbackInfo& info);
 
+    // FIXME (aw): should we merge all this into one get_manifest?
     Napi::Value get_metadata(const Napi::CallbackInfo& info);
+    Napi::Value get_implementations(const Napi::CallbackInfo& info);
+    Napi::Value get_requirements(const Napi::CallbackInfo& info);
 
     std::unique_ptr<everest::ModulePeer> peer;
     std::list<AsyncMQTTSubscription> mqtt_subscriptions;
@@ -86,6 +89,8 @@ Napi::Object EverestModule::Init(Napi::Env env, Napi::Object exports) {
             InstanceMethod<&EverestModule::mqtt_subscribe>(
                 "mqtt_subscribe", static_cast<napi_property_attributes>(napi_writable | napi_configurable)),
             InstanceAccessor<&EverestModule::get_metadata>("metadata"),
+            InstanceAccessor<&EverestModule::get_implementations>("implementations"),
+            InstanceAccessor<&EverestModule::get_requirements>("requirements"),
         });
 
     Napi::FunctionReference* constructor = new Napi::FunctionReference();
@@ -102,22 +107,22 @@ EverestModule::EverestModule(const Napi::CallbackInfo& info) : Napi::ObjectWrap<
     Napi::Env env = info.Env();
 
     const Napi::Object& settings = info[0].ToObject();
-    const auto& module_id = settings.Get("module_id").ToString().Utf8Value();
-    const auto& module_dir = settings.Get("module_dir").ToString().Utf8Value();
-    const auto& interfaces_dir = settings.Get("interfaces_dir").ToString().Utf8Value();
+    const auto& module_id = settings.Get("module_id").ToString();
+    const auto& manifest_path = settings.Get("manifest_path").ToString();
+    const std::string interfaces_dir = settings.Get("interfaces_dir").ToString();
 
-    const auto manifest_text = read_file(module_dir, "manifest.json");
+    const auto manifest_text = read_file(manifest_path);
     const auto manifest = everest::schema::parse_module(manifest_text);
 
     auto interface_map_builder = everest::InterfaceMapBuilder();
     for (const auto impl_it : manifest.implementations) {
         const auto& interface_type = impl_it.second.interface;
-        interface_map_builder.add(interface_type, read_file(interfaces_dir, interface_type + ".json"));
+        interface_map_builder.add(interface_type, read_file(interfaces_dir + "/" + interface_type + ".json"));
     }
 
     for (const auto req_it : manifest.requirements) {
         const auto& interface_type = req_it.second.interface;
-        interface_map_builder.add(interface_type, read_file(interfaces_dir, interface_type + ".json"));
+        interface_map_builder.add(interface_type, read_file(interfaces_dir + "/" + interface_type + ".json"));
     }
 
     this->peer =
@@ -144,6 +149,58 @@ Napi::Value EverestModule::get_metadata(const Napi::CallbackInfo& info) {
     module_info.DefineProperty(Napi::PropertyDescriptor::Value("authors", authors, napi_enumerable));
 
     return module_info;
+}
+
+static Napi::Value interface_to_object(Napi::Env env, const everest::schema::Interface& interface) {
+    auto cmds_obj = Napi::Array::New(env, interface.commands.size());
+    size_t cmd_i = 0;
+    for (const auto& cmd_it : interface.commands) {
+        cmds_obj[cmd_i] = Napi::String::New(env, cmd_it.first);
+        cmd_i++;
+    }
+
+    auto vars_obj = Napi::Array::New(env, interface.variables.size());
+    size_t var_i = 0;
+    for (const auto& var_it : interface.variables) {
+        vars_obj[var_i] = Napi::String::New(env, var_it.first);
+        var_i++;
+    }
+
+    auto interface_obj = Napi::Object::New(env);
+    interface_obj.DefineProperties({
+        Napi::PropertyDescriptor::Value("variables", vars_obj, napi_enumerable),
+        Napi::PropertyDescriptor::Value("commands", cmds_obj, napi_enumerable),
+    });
+
+    return interface_obj;
+}
+
+Napi::Value EverestModule::get_requirements(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    auto requirements = Napi::Object::New(env);
+    for (const auto& req_it : this->peer->get_module().manifest.requirements) {
+        const auto& requirement_id = req_it.first;
+        const auto& interface = this->peer->get_module().get_requirement_interface(requirement_id);
+        requirements.DefineProperty(
+            Napi::PropertyDescriptor::Value(requirement_id, interface_to_object(env, interface), napi_enumerable));
+    }
+
+    return requirements;
+}
+
+Napi::Value EverestModule::get_implementations(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    auto implementations = Napi::Object::New(env);
+    for (const auto& impl_it : this->peer->get_module().manifest.implementations) {
+        const auto& implementation_id = impl_it.first;
+        const auto& interface = this->peer->get_module().get_implementation_interface(implementation_id);
+        implementations.DefineProperty(
+            Napi::PropertyDescriptor::Value(implementation_id, interface_to_object(env, interface), napi_enumerable));
+    }
+
+    return implementations;
 }
 
 Napi::Value EverestModule::say_hello(const Napi::CallbackInfo& info) {

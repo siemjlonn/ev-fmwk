@@ -1,21 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2020 - 2022 Pionix GmbH and Contributors to EVerest
-
 #include "thread_safe_callbacks.hpp"
 
 #include <napi.h>
 
 #include "conversion.hpp"
 
-
-
 void AsyncCmdImplementation::js_trampoline(Napi::Env env, Napi::Function callback, nullptr_t*,
                                            AsyncCmdImplementation* this_) {
-    const auto resolve = Napi::Function::New(env, [&result=this_->result](const Napi::CallbackInfo& info) {
+    const auto resolve = Napi::Function::New(env, [&result = this_->result](const Napi::CallbackInfo& info) {
         result->set_value(napi_value_to_ev_value(info[0]));
         return info.Env().Null();
     });
-    const auto reject = Napi::Function::New(env, [&result=this_->result](const Napi::CallbackInfo& info) {
+    const auto reject = Napi::Function::New(env, [&result = this_->result](const Napi::CallbackInfo& info) {
         result->set_exception(std::make_exception_ptr(std::runtime_error("Command handler reject result")));
         return info.Env().Null();
     });
