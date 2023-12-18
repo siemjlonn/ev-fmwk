@@ -152,25 +152,7 @@ if(BUILD_TESTING)
     include(CTest)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
 
-    evc_include(CodeCoverage)
-
-    append_coverage_compiler_flags()
-
     add_subdirectory(tests)
-
-    setup_target_for_coverage_gcovr_html(
-        NAME gcovr_coverage
-        EXECUTABLE ctest --output-on-failure
-        EXCLUDE "${CMAKE_SOURCE_DIR}/tests" "${CMAKE_BINARY_DIR}"
-        DEPENDENCIES tests everest
-    )
-
-    setup_target_for_coverage_lcov(
-        NAME lcov_coverage
-        EXECUTABLE ctest --output-on-failure
-        EXCLUDE "${CMAKE_SOURCE_DIR}/tests" "${CMAKE_BINARY_DIR}"
-        DEPENDENCIES tests everest
-    )
 else()
     message(STATUS "Not running unit tests")
 endif()

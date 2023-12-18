@@ -11,14 +11,22 @@ target_sources(tests PRIVATE
     helpers.cpp
 )
 
-target_link_libraries(tests
+add_subdirectory(controller)
+
+add_executable(
+    tests
+        test_config.cpp
+)
+
+
+target_link_libraries(${CONFIG_TEST}
     PRIVATE
         everest::framework
         everest::log
         Catch2::Catch2WithMain
 )
 
-catch_discover_tests(tests)
+catch_discover_tests(${CONFIG_TEST})
 
 include(test_directory_setups/empty_config.cmake)
 include(test_directory_setups/broken_yaml.cmake)

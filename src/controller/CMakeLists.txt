@@ -15,6 +15,7 @@ add_executable(controller
     command_api.cpp
     rpc.cpp
     server.cpp
+    transpile_config.cpp
     ${PROJECT_SOURCE_DIR}/lib/yaml_loader.cpp
 )
 
