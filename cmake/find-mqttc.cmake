@@ -1,5 +1,5 @@
 # FIXME (aw): quite hacky, should check at least if target already exists
-add_library(mqttc STATIC IMPORTED)
+# add_library(mqttc STATIC IMPORTED)
 
 find_library(MQTTC_LIB_FILE mqttc)
 find_path(MQTTC_INCLUDE_DIR mqtt.h)
