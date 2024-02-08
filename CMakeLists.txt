@@ -152,29 +152,23 @@ endif ()
 
 # testing
 # FIXME (aw): move testing logic into tests/CMakeLists.txt
-if((${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME} OR ${PROJECT_NAME}_BUILD_TESTING) AND BUILD_TESTING)
-if((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR ${PROJECT_NAME}_BUILD_TESTING) AND BUILD_TESTING)
+if(BUILD_TESTING)
     if(NOT DISABLE_EDM)
         list(APPEND CMAKE_MODULE_PATH ${CPM_PACKAGE_catch2_SOURCE_DIR}/extras)
     endif()
     include(CTest)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
-
     evc_include(CodeCoverage)
-
     append_coverage_compiler_flags()
-
     add_subdirectory(tests)
-
     setup_target_for_coverage_gcovr_html(
-        NAME ${PROJECT_NAME}_gcovr_coverage
+        NAME gcovr_coverage
         EXECUTABLE ctest --output-on-failure
         EXCLUDE "${CMAKE_SOURCE_DIR}/tests" "${CMAKE_BINARY_DIR}"
         DEPENDENCIES tests everest
     )
-
     setup_target_for_coverage_lcov(
-        NAME ${PROJECT_NAME}_lcov_coverage
+        NAME lcov_coverage
         EXECUTABLE ctest --output-on-failure
         EXCLUDE "${CMAKE_SOURCE_DIR}/tests" "${CMAKE_BINARY_DIR}"
         DEPENDENCIES tests everest
@@ -182,13 +176,11 @@ if((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR ${PROJECT_NAME}_BUILD_TESTING) A
 else()
     message(STATUS "Not running unit tests")
 endif()
-
 # configure clang-tidy if requested
 if(CMAKE_RUN_CLANG_TIDY)
     message("Enabling clang-tidy")
     set(CMAKE_CXX_CLANG_TIDY clang-tidy)
 endif()
-
 # build doxygen documentation if doxygen is available
 find_package(Doxygen)
 if(DOXYGEN_FOUND)
